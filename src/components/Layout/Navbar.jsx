@@ -17,12 +17,14 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [requestsOpen, setRequestsOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(() => isAuthenticated());
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const panelRef = useRef(null);
   const hamburgerRef = useRef(null);
+  const requestsRef = useRef(null);
 
   /* ── Auth sync ─────────────────────────────────────────── */
   useEffect(() => {
@@ -54,26 +56,36 @@ export default function Navbar() {
 
   /* ── Close on outside click ────────────────────────────── */
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !requestsOpen) return;
     const handler = (e) => {
       const clickedInsidePanel = panelRef.current && panelRef.current.contains(e.target);
       const clickedHamburger = hamburgerRef.current && hamburgerRef.current.contains(e.target);
-      if (!clickedInsidePanel && !clickedHamburger) {
+      const clickedInsideRequests = requestsRef.current && requestsRef.current.contains(e.target);
+      if (!clickedInsidePanel && !clickedHamburger && !clickedInsideRequests) {
         setMenuOpen(false);
+        setRequestsOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
+  }, [menuOpen, requestsOpen]);
 
   /* ── Close on Escape ───────────────────────────────────── */
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setRequestsOpen(false);
+      }
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const close = () => setMenuOpen(false);
+  const close = () => {
+    setMenuOpen(false);
+    setRequestsOpen(false);
+  };
 
   const handleLogout = () => {
     clearAuthenticated();
@@ -116,6 +128,27 @@ export default function Navbar() {
             </a>
           )
         )}
+        <div className="requests-menu" ref={requestsRef}>
+          <button
+            type="button"
+            className={`nav-link requests-menu-trigger${requestsOpen ? " is-open" : ""}`}
+            aria-expanded={requestsOpen}
+            aria-haspopup="menu"
+            onClick={() => setRequestsOpen((open) => !open)}
+          >
+            تسجيل الطلبات <span className="requests-chevron">⌄</span>
+          </button>
+          {requestsOpen && (
+            <div className="requests-dropdown" role="menu">
+              <Link className="requests-dropdown-item" to="/add-unit" onClick={close} role="menuitem">
+                إضافة وحدة جديدة
+              </Link>
+              <Link className="requests-dropdown-item" to="/eligibility-request" onClick={close} role="menuitem">
+                طلب التحقق من أهلية
+              </Link>
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* ── Desktop right actions ──────────────────────────── */}
@@ -235,6 +268,26 @@ export default function Navbar() {
               </a>
             )
           )}
+          <div className="mobile-requests-menu">
+            <button
+              type="button"
+              className={`mobile-link mobile-requests-trigger${requestsOpen ? " is-open" : ""}`}
+              aria-expanded={requestsOpen}
+              onClick={() => setRequestsOpen((open) => !open)}
+            >
+              تسجيل الطلبات <span className="requests-chevron">⌄</span>
+            </button>
+            {requestsOpen && (
+              <div className="mobile-requests-dropdown">
+                <Link className="mobile-request-item" to="/add-unit" onClick={close}>
+                  إضافة وحدة جديدة
+                </Link>
+                <Link className="mobile-request-item" to="/eligibility-request" onClick={close}>
+                  طلب التحقق من أهلية
+                </Link>
+              </div>
+            )}
+          </div>
         </nav>
 
         <div className="mobile-divider" />

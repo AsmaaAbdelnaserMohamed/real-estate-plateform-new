@@ -8,6 +8,8 @@ import ProtectedRoute from "./components/Auth/ProtectedRoute.jsx";
 import BankEmployeePage from "./pages/BankEmployeePage/BankEmployeePage.jsx";
 import BankEmployeeRequestPage from "./pages/BankEmployeePage/BankEmployeeRequestPage.jsx";
 import ReviewerPage from "./pages/Reviewerpage/Reviewerpage.jsx";
+import EligibilityRequest from "./pages/EligibilityRequest/EligibilityRequest.jsx";
+import AddUnitRequest from "./pages/AddUnitRequest/AddUnitRequest.jsx";
 
 function App() {
   return (
@@ -49,6 +51,8 @@ function App() {
           }
         />
         <Route path="/register" element={<Register />} />
+        <Route path="/eligibility-request" element={<EligibilityRequest />} />
+        <Route path="/add-unit" element={<AddUnitRequest />} />
       </Routes>
     </BrowserRouter>
   );

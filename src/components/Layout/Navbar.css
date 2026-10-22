@@ -159,6 +159,68 @@ body.nav-locked {
   background: var(--nav-accent);
 }
 
+/* Requests dropdown */
+.requests-menu {
+  position: relative;
+}
+
+.requests-menu-trigger {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+    background-color: #071528;
+
+}
+
+.requests-menu-trigger.is-open {
+  color: var(--nav-text);
+  background: var(--nav-hover-bg);
+}
+
+.requests-chevron {
+  margin-right: 5px;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.requests-menu-trigger.is-open .requests-chevron,
+.mobile-requests-trigger.is-open .requests-chevron {
+  transform: rotate(180deg);
+}
+
+.requests-dropdown {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  min-width: 220px;
+  padding: 7px;
+  border: 1px solid var(--nav-border);
+  border-radius: 12px;
+  background: rgba(9, 24, 47, 0.98);
+  box-shadow: 0 14px 30px rgba(2, 10, 22, 0.35);
+  z-index: 120;
+}
+
+.requests-dropdown-item,
+.mobile-request-item {
+  display: block;
+  padding: 11px 13px;
+  border-radius: 8px;
+  color: var(--nav-text);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.requests-dropdown-item:hover,
+.mobile-request-item:hover {
+  color: var(--nav-active-color);
+  background: var(--nav-hover-bg);
+}
+
 /* ── Desktop right actions ─────────────────────────────────── */
 .nav-actions {
   display: flex;
@@ -271,7 +333,6 @@ body.nav-locked {
   font-size: 0.9rem;
   border-radius: 10px;
 }
-
 /* ── Hamburger ─────────────────────────────────────────────── */
 .hamburger {
   display: none;
@@ -407,6 +468,36 @@ body.nav-locked {
   color: var(--nav-active-color);
 }
 
+.mobile-requests-menu {
+  width: 100%;
+}
+
+.mobile-requests-trigger {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+
+.mobile-requests-trigger.is-open {
+  background: var(--nav-hover-bg);
+  color: var(--nav-text);
+}
+
+.mobile-requests-dropdown {
+  margin: 0 12px 6px;
+  padding: 4px;
+  border-right: 2px solid var(--nav-accent-dark);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.mobile-request-item {
+  padding: 10px 14px;
+  font-size: 0.88rem;
+}
+
 /* ── Mobile auth buttons ───────────────────────────────────── */
 .mobile-auth {
   display: flex;
@@ -438,6 +529,10 @@ body.nav-locked {
 @media (max-width: 1024px) {
   .nav-links,
   .nav-actions {
+    display: none;
+  }
+
+  .requests-menu {
     display: none;
   }
 
