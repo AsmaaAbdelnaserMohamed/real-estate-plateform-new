@@ -15,6 +15,15 @@ const BANKS = [
   { name: "CIB", rate: 11.9, note: "حتى 25 سنة" },
   { name: "QNB الأهلي", rate: 12.75, note: "حتى 20 سنة" },
 ];
+const UNIT_FIELD_LABELS = {
+  usageType: "نوع الاستخدام", unitType: "نوع الوحدة", governorate: "المحافظة", district: "المنطقة / الحي",
+  street: "الشارع", buildingNumber: "رقم المبنى", floor: "الدور", unitNumber: "رقم الوحدة",
+  buildYear: "سنة البناء", area: "المساحة بالمتر المربع", price: "سعر العقار بالجنيه المصري",
+  elevator: "المصعد", condition: "حالة الوحدة", utilities: "المرافق المتصلة", rooms: "عدد الغرف",
+  kitchens: "عدد المطابخ", bathrooms: "عدد الحمامات", receptionRooms: "عدد غرف الاستقبال",
+  structuralIssues: "المشاكل الهيكلية", access: "الوصول إلى العقار", parking: "مواقف السيارات",
+  nearbyServices: "الخدمات القريبة",
+};
 const INITIAL_DOCUMENTS = [
   {
     id: "national-id",
@@ -113,6 +122,9 @@ function PropertyCard({ property, onClose }) {
     { value: property.bathrooms || 2, label: "حمامات" },
     { value: property.floor ? `دور ${property.floor}` : "دور 4", label: "الطابق" },
   ];
+  const unitDetails = property.unitData ? Object.entries(property.unitData)
+    .filter(([key, value]) => UNIT_FIELD_LABELS[key] && value !== "" && value !== null && value !== undefined && (!Array.isArray(value) || value.length > 0))
+    .map(([key, value]) => ({ label: UNIT_FIELD_LABELS[key], value: Array.isArray(value) ? value.join("، ") : value })) : [];
 
   const stepLabels = ["بياناتك", "التمويل", "البنك", "المستندات"];
   const nextLabels = [
@@ -254,6 +266,15 @@ function PropertyCard({ property, onClose }) {
               <div className="inst-lbl">قسط شهري تقريبي</div>
             </div>
           </div>
+
+          {unitDetails.length > 0 && (
+            <section className="unit-details">
+              <h3>بيانات الوحدة</h3>
+              <div className="unit-details-grid">
+                {unitDetails.map((item) => <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>)}
+              </div>
+            </section>
+          )}
 
           <div className="action-btns">
             <button
@@ -545,13 +566,17 @@ function PropertyCard({ property, onClose }) {
             >
               ×
             </button>
-            <iframe
-              src={`${property.video}${property.video.includes("?") ? "&" : "?"}autoplay=1`}
-              title={`فيديو ${title}`}
-              frameBorder="0"
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-            />
+            {property.video.startsWith("blob:") ? (
+              <video src={property.video} title={`فيديو ${title}`} controls autoPlay />
+            ) : (
+              <iframe
+                src={`${property.video}${property.video.includes("?") ? "&" : "?"}autoplay=1`}
+                title={`فيديو ${title}`}
+                frameBorder="0"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            )}
           </div>
         )}
       </div>

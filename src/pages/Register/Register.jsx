@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { setAuthenticated } from "../../utils/auth";
+import { clearAuthenticated } from "../../utils/auth";
 import { saveUser, findUserByUsername, findUserByEmail } from "../../utils/localStorage";
 import "./Register.css";
 
@@ -529,7 +529,7 @@ export default function Register() {
       };
 
       saveUser(user);
-      setAuthenticated(user);
+      clearAuthenticated();
       setStep(3);
 
     } else if (normalizedType === "شركات") {
@@ -596,7 +596,7 @@ export default function Register() {
       };
 
       saveUser(user);
-      setAuthenticated(user);
+      clearAuthenticated();
       setStep(3);
 
     } else if (normalizedType === "بنوك") {
@@ -663,7 +663,7 @@ export default function Register() {
       };
 
       saveUser(user);
-      setAuthenticated(user);
+      clearAuthenticated();
       setStep(3);
     }
   };

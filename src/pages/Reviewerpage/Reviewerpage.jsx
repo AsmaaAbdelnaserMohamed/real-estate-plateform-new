@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import styles from './ReviewerPage.module.css';
 import Navbar from '../../components/Layout/Navbar';
 import Footer from '../../components/Layout/Footer';
+import { getWorkflowRequests, updateWorkflowRequest } from '../../utils/requestWorkflow';
 
 /* ------------------------------------------------------------------ */
 /*  Icons (inline SVG, no external library)                            */
@@ -174,6 +175,40 @@ const UNIT_TYPES = ['شقة سكنية', 'دوبلكس', 'فيلا'];
 /** Decision selected by default (matches the screenshots). Set to null to force an explicit choice. */
 const DEFAULT_DECISION = 'eligible';
 
+const REQUEST_FIELD_LABELS = {
+  fullName: 'الاسم بالكامل', birthDate: 'تاريخ الميلاد', phone: 'رقم الهاتف', gender: 'النوع',
+  identityType: 'نوع إثبات الهوية', nationalId: 'رقم الهوية', occupation: 'المهنة', maritalStatus: 'الحالة الاجتماعية',
+  dependents: 'عدد المعالين', employmentType: 'نوع العمل', employer: 'جهة العمل', jobTitle: 'المسمى الوظيفي',
+  contractType: 'نوع عقد العمل', workDuration: 'مدة العمل', monthlyIncome: 'الدخل الشهري', salaryTransferred: 'تحويل الراتب للبنك',
+  otherIncome: 'مصادر دخل أخرى', loanInstallments: 'أقساط القروض الشهرية', otherCommitments: 'التزامات شهرية أخرى',
+  governorate: 'المحافظة', area: 'المساحة بالمتر المربع', district: 'المنطقة / الحي', address: 'العنوان', housingType: 'نوع السكن', price: 'سعر العقار بالجنيه المصري',
+  residenceDuration: 'مدة الإقامة', propertyType: 'نوع العقار', loanAmount: 'مبلغ التمويل المطلوب', duration: 'مدة التمويل',
+  income: 'الدخل الشهري', bankPref: 'البنك المفضل', ownerName: 'اسم المالك', email: 'البريد الإلكتروني',
+  propertyCondition: 'حالة العقار', usageType: 'نوع الاستخدام', unitType: 'نوع الوحدة', street: 'الشارع',
+  buildingNumber: 'رقم المبنى', floor: 'الدور', unitNumber: 'رقم الوحدة', buildYear: 'سنة البناء',
+  elevator: 'المصعد', condition: 'حالة الوحدة', utilities: 'المرافق المتصلة', rooms: 'عدد الغرف', kitchens: 'عدد المطابخ',
+  bathrooms: 'عدد الحمامات', receptionRooms: 'عدد غرف الاستقبال', structuralIssues: 'مشاكل هيكلية', access: 'الوصول إلى العقار',
+  parking: 'مواقف السيارات', nearbyServices: 'الخدمات القريبة', fullAddress: 'العنوان بالتفصيل', consultTopic: 'موضوع الاستشارة',
+  consultDetails: 'تفاصيل الاستشارة', urgency: 'درجة الاستعجال', preferredContact: 'طريقة التواصل المفضلة',
+  consultantName: 'اسم مقدم الاستشارة', consultantPhone: 'هاتف مقدم الاستشارة', consultantEmail: 'بريد مقدم الاستشارة',
+};
+
+function formatRequestValue(value) {
+  if (Array.isArray(value)) return value.length ? value.join('، ') : 'لا يوجد';
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'object') return Object.entries(value).map(([key, entry]) => `${REQUEST_FIELD_LABELS[key] || key}: ${formatRequestValue(entry)}`).join('، ');
+  return String(value);
+}
+
+function getRequestFields(item) {
+  if (!item.workflowRequest || !item.data) return [];
+  const fields = Object.entries(item.data)
+    .filter(([key, value]) => !['docs', 'titleDocs'].includes(key) && value !== '' && value !== null && value !== undefined && (!Array.isArray(value) || value.length > 0))
+    .map(([key, value]) => ({ label: REQUEST_FIELD_LABELS[key] || key, value: formatRequestValue(value), span: 6 }));
+  if (item.location) fields.push({ label: 'إحداثيات موقع الوحدة', value: `${item.location.lat}, ${item.location.lng}`, span: 12 });
+  return fields;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Per-tab configuration                                              */
 /* ------------------------------------------------------------------ */
@@ -338,6 +373,10 @@ function ReviewSection({ config, results, onSubmit, sending }) {
   const [applied, setApplied] = useState({ q: '', filter: '' });
   const [decisions, setDecisions] = useState({});
   const [previewDoc, setPreviewDoc] = useState(null);
+
+  useEffect(() => {
+    if (!items.some((item) => item.id === selectedId)) setSelectedId(items[0]?.id ?? null);
+  }, [items, selectedId]);
 
   const visible = useMemo(() => {
     const q = applied.q.trim().toLowerCase();
@@ -513,6 +552,20 @@ function ReviewSection({ config, results, onSubmit, sending }) {
             ))}
           </div>
 
+          {getRequestFields(selected).length > 0 && (
+            <div className={styles.block}>
+              <div className={styles.blockTitle}>جميع البيانات المُدخلة في الطلب</div>
+              <div className={styles.fields}>
+                {getRequestFields(selected).map((field) => (
+                  <div key={field.label} className={styles.field} style={{ gridColumn: `span ${field.span}` }}>
+                    <span className={styles.fieldLabel}>{field.label}</span>
+                    <div className={styles.fieldValue}>{field.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {detail.extra?.(selected)}
 
           <div className={styles.block}>
@@ -605,9 +658,19 @@ function ReviewSection({ config, results, onSubmit, sending }) {
  */
 export default function ReviewerPage({ onSubmitDecision }) {
   const [tab, setTab] = useState('applicants');
-  const [results, setResults] = useState({ applicants: {}, units: {} });
+  const [results, setResults] = useState(() => {
+    const saved = { applicants: {}, units: {} };
+    getWorkflowRequests().forEach((request) => {
+      if ((request.status === 'eligible' || request.status === 'ineligible') && request.reviewerDecisionAt) {
+        const key = request.kind === 'unit' ? 'units' : 'applicants';
+        saved[key][request.id] = { status: request.status };
+      }
+    });
+    return saved;
+  });
   const [sending, setSending] = useState({ applicants: null, units: null });
   const [toast, setToast] = useState(null);
+  const [workflowRequests, setWorkflowRequests] = useState(() => getWorkflowRequests());
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -620,6 +683,10 @@ export default function ReviewerPage({ onSubmitDecision }) {
     try {
       if (onSubmitDecision) await onSubmitDecision({ tab: key, item, decision, message });
       else await wait(700);
+      if (item.workflowRequest) {
+        updateWorkflowRequest(item.id, { status: decision, decision, reviewerMessage: message, reviewerDecisionAt: new Date().toISOString() });
+        setWorkflowRequests(getWorkflowRequests());
+      }
       setResults((r) => ({ ...r, [key]: { ...r[key], [item.id]: { status: decision } } }));
       setToast({ type: 'ok', text: successText });
     } catch {
@@ -629,12 +696,40 @@ export default function ReviewerPage({ onSubmitDecision }) {
     }
   };
 
-  const pendingCount = (key) =>
-    TAB_CONFIG[key].items.filter((it) => !results[key][it.id]).length;
+  const toReviewerItem = (request) => {
+    const data = request.data || {};
+    const isUnit = request.kind === 'unit';
+    const fullAddress = data.fullAddress || [data.governorate, data.district, data.area, data.address].filter(Boolean).join('، ');
+    const docs = (request.documents || []).map((doc, index) => ({ ...doc, id: `${request.id}-doc-${index}` }));
+    if (isUnit) return {
+      id: request.id, workflowRequest: true, data, code: request.requestNumber, address: fullAddress || 'العنوان غير متاح', fullAddress: fullAddress || 'العنوان غير متاح',
+      location: request.location,
+      type: `${data.usageType || 'سكني'} ${data.unitType || 'وحدة'}`, date: new Date(request.createdAt).toLocaleDateString('ar-EG'),
+      utilities: ['كهرباء', 'ماء', 'غاز'].map((label) => ({ label, ok: (data.utilities || []).includes(label) })), docs,
+    };
+    const isEligibility = request.kind === 'eligibility';
+    const name = data.fullName || data.ownerName || 'مقدم الطلب';
+    const birthYear = Number((data.birthDate || '').slice(0, 4));
+    const age = birthYear ? Math.max(0, new Date().getFullYear() - birthYear) : '—';
+    return {
+      id: request.id, workflowRequest: true, data, name, fullName: name, age,
+      job: [data.jobTitle || data.occupation, data.employer || data.employmentType].filter(Boolean).join(' - ') || 'غير محدد',
+      ref: request.requestNumber, date: new Date(request.createdAt).toLocaleDateString('ar-EG'),
+      governorate: data.governorate || 'غير محدد', address: fullAddress || 'العنوان غير متاح', docs,
+    };
+  };
+
+  const liveApplicants = workflowRequests.filter((request) => ['eligibility', 'financing', 'consultation'].includes(request.kind)).map(toReviewerItem);
+  const liveUnits = workflowRequests.filter((request) => request.kind === 'unit').map(toReviewerItem);
+  const configs = {
+    applicants: { ...TAB_CONFIG.applicants, items: [...liveApplicants, ...APPLICANTS] },
+    units: { ...TAB_CONFIG.units, items: [...liveUnits, ...UNITS] },
+  };
+  const pendingCount = (key) => configs[key].items.filter((it) => !results[key][it.id] && it.status !== 'eligible' && it.status !== 'ineligible').length;
 
   const counts = {
     applicants: `${pendingCount('applicants')} نشط`,
-    units: `${TAB_CONFIG.units.items.length} مسجلة`,
+    units: `${configs.units.items.length} مسجلة`,
   };
 
   return (
@@ -643,7 +738,7 @@ export default function ReviewerPage({ onSubmitDecision }) {
       <div className={styles.page} dir="rtl">
         <nav className={styles.tabs} role="tablist" aria-label="أقسام المراجعة">
           {TAB_ORDER.map((key) => {
-            const cfg = TAB_CONFIG[key];
+            const cfg = configs[key];
             const active = tab === key;
             return (
               <button
@@ -667,7 +762,7 @@ export default function ReviewerPage({ onSubmitDecision }) {
         {TAB_ORDER.map((key) => (
           <div key={key} hidden={tab !== key} role="tabpanel">
             <ReviewSection
-              config={TAB_CONFIG[key]}
+              config={configs[key]}
               results={results[key]}
               sending={sending[key]}
               onSubmit={handleSubmit}

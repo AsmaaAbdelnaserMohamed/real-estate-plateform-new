@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { fileMetadata, saveWorkflowRequest } from "../../utils/requestWorkflow";
 import "./RequestForm.css";
 
 // ─────────────────────────────────────────────
@@ -617,6 +618,7 @@ export default function RequestForm({ onClose, defaultType = null }) {
   const [formType, setFormType]   = useState(defaultType);
   const [step, setStep]           = useState(defaultType ? 2 : 1);
   const [submitted, setSubmitted] = useState(false);
+  const [requestNumber, setRequestNumber] = useState("");
   const [errors, setErrors]       = useState({});
 
   const [data, setData] = useState({
@@ -671,7 +673,18 @@ export default function RequestForm({ onClose, defaultType = null }) {
   const next = () => {
     if (!validate()) return;
     if (step < totalSteps) setStep((s) => s + 1);
-    else setSubmitted(true);
+    else {
+      const requestNumber = `${formType === FORM_TYPES.financing ? "REQ" : "CON"}-${Date.now().toString().slice(-8)}`;
+      setRequestNumber(requestNumber);
+      const attachments = formType === FORM_TYPES.financing
+        ? [...data.docs.map((file) => fileMetadata(file, "مستند تمويل")), ...data.titleDocs.map((file) => fileMetadata(file, "مستند ملكية"))]
+        : data.docs.map((file) => fileMetadata(file, "مستند استشارة"));
+      saveWorkflowRequest({
+        id: requestNumber, kind: formType, requestNumber, createdAt: new Date().toISOString(), status: "review",
+        data: { ...data }, documents: attachments.filter(Boolean),
+      });
+      setSubmitted(true);
+    }
   };
 
   const back = () => {
@@ -712,7 +725,7 @@ export default function RequestForm({ onClose, defaultType = null }) {
               : "سيرد عليك أحد الخبراء القانونيين المعتمدين خلال 24 ساعة."}
           </p>
           <div className="rf-success-ref">
-            رقم الطلب: <strong>REQ-{Date.now().toString().slice(-8)}</strong>
+              رقم الطلب: <strong>{requestNumber || `REQ-${Date.now().toString().slice(-8)}`}</strong>
           </div>
           <button className="btn-primary" onClick={onClose}>حسناً، شكراً</button>
         </div>

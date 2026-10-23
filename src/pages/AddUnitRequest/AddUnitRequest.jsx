@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import Navbar from "../../components/Layout/Navbar";
+import { fileMetadata, saveWorkflowFiles, saveWorkflowRequest } from "../../utils/requestWorkflow";
 import "leaflet/dist/leaflet.css";
 import "./AddUnitRequest.css";
 
@@ -35,6 +36,7 @@ const initialData = {
   unitNumber: "",
   buildYear: "",
   area: "",
+  price: "",
   elevator: "",
   condition: "",
   utilities: [],
@@ -198,7 +200,7 @@ export default function AddUnitRequest() {
     );
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (step < 5) {
       if (step === 1 && !location) {
@@ -217,6 +219,31 @@ export default function AddUnitRequest() {
       return;
     }
     const generatedNumber = `UNT-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const fullAddress = [data.governorate, data.district, data.street, data.buildingNumber && `عمارة ${data.buildingNumber}`, data.floor && `الدور ${data.floor}`, data.unitNumber && `وحدة ${data.unitNumber}`].filter(Boolean).join("، ");
+    const documents = [
+      ...LEGAL_SINGLE_FIELDS.map(([name, title]) => fileMetadata(legalDocuments[name], title)),
+      ...legalDocuments.powers.map((file) => fileMetadata(file, "توكيل")),
+      ...legalDocuments.judgments.map((file) => fileMetadata(file, "حكم صادر")),
+      ...PHOTO_FIELDS.map(([name, title]) => fileMetadata(photos[name], title)),
+      fileMetadata(video, "فيديو الوحدة"),
+    ].filter(Boolean);
+    const workflowFiles = [
+      ...Object.entries(photos).filter(([, file]) => file).map(([name, file]) => ({ key: `photo-${name}`, file })),
+      ...LEGAL_SINGLE_FIELDS.map(([name]) => ({ key: `legal-${name}`, file: legalDocuments[name] })).filter(({ file }) => file),
+      ...legalDocuments.powers.map((file, index) => ({ key: `power-${index}`, file })),
+      ...legalDocuments.judgments.map((file, index) => ({ key: `judgment-${index}`, file })),
+      ...(video ? [{ key: "video", file: video }] : []),
+    ];
+    try {
+      await saveWorkflowFiles(generatedNumber, workflowFiles);
+    } catch {
+      alert("تعذر حفظ ملفات الوحدة. يرجى المحاولة مرة أخرى.");
+      return;
+    }
+    saveWorkflowRequest({
+      id: generatedNumber, kind: "unit", requestNumber: generatedNumber, createdAt: new Date().toISOString(), status: "review",
+      data: { ...data, fullAddress }, location, documents,
+    });
     setRequestNumber(generatedNumber);
     setSubmitted(true);
   };
@@ -272,6 +299,7 @@ export default function AddUnitRequest() {
               <TextField label="رقم الوحدة" name="unitNumber" value={data.unitNumber} onChange={updateField} required />
               <TextField label="سنة البناء تقريبًا" name="buildYear" value={data.buildYear} onChange={updateField} type="number" required placeholder="YYYY" />
               <TextField label="مساحة الوحدة بالمتر المربع" name="area" value={data.area} onChange={updateField} type="number" required placeholder="مثال: 120" />
+              <TextField label="سعر العقار بالجنيه المصري" name="price" value={data.price} onChange={updateField} type="number" required placeholder="مثال: 2500000" />
             </div>
             <ChoiceGroup label="المصعد متاح؟" name="elevator" value={data.elevator} onChange={updateField} values={["نعم", "لا"]} data={data} setData={setData} />
           </section>}
@@ -339,7 +367,7 @@ export default function AddUnitRequest() {
             <div className="review-data-card">
               <h3>بيانات الوحدة والموقع</h3>
               <div className="review-data-grid">
-                {[["نوع الاستخدام", "usageType"], ["نوع الوحدة", "unitType"], ["المحافظة", "governorate"], ["المنطقة / الحي", "district"], ["اسم الشارع", "street"], ["رقم المبنى", "buildingNumber"], ["الدور", "floor"], ["رقم الوحدة", "unitNumber"], ["سنة البناء", "buildYear"], ["المساحة", "area"], ["المصعد", "elevator"], ["حالة الوحدة", "condition"], ["المرافق", "utilities"], ["المشاكل الهيكلية", "structuralIssues"], ["الوصول", "access"], ["مواقف السيارات", "parking"], ["الخدمات القريبة", "nearbyServices"]].map(([label, key]) => <div className="review-data-row" key={key}><span>{label}</span><strong>{Array.isArray(data[key]) ? (data[key].join("، ") || "لم يتم الاختيار") : data[key] || "لم يتم الإدخال"}</strong></div>)}
+                {[["نوع الاستخدام", "usageType"], ["نوع الوحدة", "unitType"], ["المحافظة", "governorate"], ["المنطقة / الحي", "district"], ["اسم الشارع", "street"], ["رقم المبنى", "buildingNumber"], ["الدور", "floor"], ["رقم الوحدة", "unitNumber"], ["سنة البناء", "buildYear"], ["المساحة", "area"], ["سعر العقار", "price"], ["المصعد", "elevator"], ["حالة الوحدة", "condition"], ["المرافق", "utilities"], ["المشاكل الهيكلية", "structuralIssues"], ["الوصول", "access"], ["مواقف السيارات", "parking"], ["الخدمات القريبة", "nearbyServices"]].map(([label, key]) => <div className="review-data-row" key={key}><span>{label}</span><strong>{Array.isArray(data[key]) ? (data[key].join("، ") || "لم يتم الاختيار") : data[key] || "لم يتم الإدخال"}</strong></div>)}
                 <div className="review-data-row"><span>الإحداثيات النهائية</span><strong>{location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "لم يتم التحديد"}</strong></div>
               </div>
             </div>

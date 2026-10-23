@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import profilePersonGirl from "../../assets/profile_person_girl.png";
 import { clearAuthenticated, isAuthenticated, getCurrentUser } from "../../utils/auth";
 import "./Navbar.css";
 import edgeProLogo from "../../assets/edge_prologo.png";
@@ -10,7 +9,6 @@ const NAV_ITEMS = [
   { label: "صفحة الطلبات", to: "/BankEmployeePage" },
   { label: "صفحة المراجع", to: "/Reviewerpage" },
   { label: "الخدمات", href: "#services-section" },
-  { label: "لوحة التحكم", to: "/dashboard" },
   { label: "الأسئلة الشائعة", href: "#faq" },
   { label: "تواصل معنا", to: "/contactus" },
 ];
@@ -18,6 +16,7 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [requestsOpen, setRequestsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(() => isAuthenticated());
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
   const [scrolled, setScrolled] = useState(false);
@@ -25,6 +24,7 @@ export default function Navbar() {
   const panelRef = useRef(null);
   const hamburgerRef = useRef(null);
   const requestsRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   /* ── Auth sync ─────────────────────────────────────────── */
   useEffect(() => {
@@ -56,19 +56,21 @@ export default function Navbar() {
 
   /* ── Close on outside click ────────────────────────────── */
   useEffect(() => {
-    if (!menuOpen && !requestsOpen) return;
+    if (!menuOpen && !requestsOpen && !userMenuOpen) return;
     const handler = (e) => {
       const clickedInsidePanel = panelRef.current && panelRef.current.contains(e.target);
       const clickedHamburger = hamburgerRef.current && hamburgerRef.current.contains(e.target);
       const clickedInsideRequests = requestsRef.current && requestsRef.current.contains(e.target);
-      if (!clickedInsidePanel && !clickedHamburger && !clickedInsideRequests) {
+      const clickedInsideUserMenu = userMenuRef.current && userMenuRef.current.contains(e.target);
+      if (!clickedInsidePanel && !clickedHamburger && !clickedInsideRequests && !clickedInsideUserMenu) {
         setMenuOpen(false);
         setRequestsOpen(false);
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen, requestsOpen]);
+  }, [menuOpen, requestsOpen, userMenuOpen]);
 
   /* ── Close on Escape ───────────────────────────────────── */
   useEffect(() => {
@@ -76,6 +78,7 @@ export default function Navbar() {
       if (e.key === "Escape") {
         setMenuOpen(false);
         setRequestsOpen(false);
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -85,7 +88,25 @@ export default function Navbar() {
   const close = () => {
     setMenuOpen(false);
     setRequestsOpen(false);
+    setUserMenuOpen(false);
   };
+
+  const displayName = loggedIn && currentUser
+    ? currentUser.type === "أفراد"
+      ? currentUser.firstName || currentUser.username
+      : currentUser.type === "شركات"
+      ? currentUser.companyName || currentUser.username
+      : currentUser.type === "بنوك"
+      ? currentUser.bankName || currentUser.username
+      : currentUser.username
+    : "زائر";
+
+  const UserIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5.5 20c.5-3.5 2.7-5.5 6.5-5.5s6 2 6.5 5.5" />
+    </svg>
+  );
 
   const handleLogout = () => {
     clearAuthenticated();
@@ -153,49 +174,44 @@ export default function Navbar() {
 
       {/* ── Desktop right actions ──────────────────────────── */}
       <div className="nav-actions">
-        <div className="user-chip">
-          <img className="user-avatar" src={profilePersonGirl} alt="" aria-hidden="true" />
-          <div className="user-info">
-            <span className="user-name">
-              {loggedIn && currentUser
-                ? currentUser.type === "أفراد"
-                  ? currentUser.firstName || currentUser.username
-                  : currentUser.type === "شركات"
-                  ? currentUser.companyName || currentUser.username
-                  : currentUser.type === "بنوك"
-                  ? currentUser.bankName || currentUser.username
-                  : currentUser.username
-                : "Guest"}
+        <div className="user-menu" ref={userMenuRef}>
+          <button
+            type="button"
+            className={`user-chip${userMenuOpen ? " is-open" : ""}`}
+            aria-expanded={userMenuOpen}
+            aria-haspopup="menu"
+            onClick={() => setUserMenuOpen((open) => !open)}
+          >
+            <span className="user-avatar"><UserIcon /></span>
+            <span className="user-info">
+              <span className="user-name">{displayName}</span>
+              <span className="user-role">{loggedIn ? "حسابك على المنصة" : "تصفح الخدمات"}</span>
             </span>
-            <span className="user-role">
-              {loggedIn ? "Ready to manage" : "Browse freely"}
-            </span>
-          </div>
+            <svg className="user-menu-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg>
+          </button>
+          {userMenuOpen && (
+            <div className="user-menu-dropdown" role="menu">
+              {loggedIn ? (
+                <>
+                  <Link className="user-menu-item" to="/dashboard" onClick={close} role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>
+                    <span>لوحة التحكم</span>
+                  </Link>
+                  <button type="button" className="user-menu-item user-menu-logout" onClick={handleLogout} role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10M15 16l4-4-4-4M19 12H9" /></svg>
+                    <span>تسجيل الخروج</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link className="user-menu-item" to="/login" onClick={close} role="menuitem">تسجيل الدخول</Link>
+                  <Link className="user-menu-item" to="/register" onClick={close} role="menuitem">إنشاء حساب</Link>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {loggedIn ? (
-          <>
-            <Link className="btn btn-ghost" to="/dashboard">
-              Dashboard
-            </Link>
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link className="btn btn-ghost" to="/login">
-              Login
-            </Link>
-            <Link className="btn btn-primary" to="/register">
-              Register
-            </Link>
-          </>
-        )}
       </div>
 
       {/* ── Hamburger ──────────────────────────────────────── */}
@@ -222,21 +238,11 @@ export default function Navbar() {
       >
         {/* User row at top of mobile menu */}
         <div className="mobile-user">
-          <img className="user-avatar" src={profilePersonGirl} alt="" aria-hidden="true" />
+          <span className="user-avatar"><UserIcon /></span>
           <div className="user-info">
-            <span className="user-name">
-              {loggedIn && currentUser
-                ? currentUser.type === "أفراد"
-                  ? currentUser.firstName || currentUser.username
-                  : currentUser.type === "شركات"
-                  ? currentUser.companyName || currentUser.username
-                  : currentUser.type === "بنوك"
-                  ? currentUser.bankName || currentUser.username
-                  : currentUser.username
-                : "Guest"}
-            </span>
+            <span className="user-name">{displayName}</span>
             <span className="user-role">
-              {loggedIn ? "Ready to manage properties" : "Browse services quickly"}
+              {loggedIn ? "حسابك على المنصة" : "تصفح الخدمات بسهولة"}
             </span>
           </div>
         </div>
@@ -301,14 +307,14 @@ export default function Navbar() {
                 to="/dashboard"
                 onClick={close}
               >
-                Dashboard
+                لوحة التحكم
               </Link>
               <button
                 type="button"
                 className="btn btn-danger btn-full"
                 onClick={handleLogout}
               >
-                Logout
+                تسجيل الخروج
               </button>
             </>
           ) : (
@@ -318,14 +324,14 @@ export default function Navbar() {
                 to="/login"
                 onClick={close}
               >
-                Login
+                تسجيل الدخول
               </Link>
               <Link
                 className="btn btn-primary btn-full"
                 to="/register"
                 onClick={close}
               >
-                Register
+                إنشاء حساب
               </Link>
             </>
           )}
