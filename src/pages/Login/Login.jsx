@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import edgeProLogo from "../../assets/edge_prologo.png";
 import bankMarkzyLogo from "../../assets/bank_markzy.png";
-import { setAuthenticated, clearAuthenticated } from "../../utils/auth";
+import { setAuthenticated } from "../../utils/auth";
 import { authenticateUser } from "../../utils/localStorage";
 import "./Login.css";
 
@@ -12,6 +12,7 @@ export default function Login() {
   const vantaRef = useRef(null);
   const effectRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (window.VANTA) {
@@ -47,7 +48,9 @@ export default function Login() {
     const user = authenticateUser(username, password);
     if (user) {
       setAuthenticated(user);
-      navigate("/");
+      const from = location.state?.from;
+      const destination = from ? `${from.pathname || "/"}${from.search || ""}${from.hash || ""}` : "/";
+      navigate(destination, { replace: true });
     } else {
       alert("اسم المستخدم أو كلمة المرور غير صحيحة");
     }

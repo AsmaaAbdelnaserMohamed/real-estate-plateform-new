@@ -7,13 +7,20 @@ const CLIENTS_KEY = "realestateplatform-clients";
 // ─── Users Management ───────────────────────────────────────────────────────
 export function getUsers() {
   if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(USERS_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = window.localStorage.getItem(USERS_KEY);
+    const users = data ? JSON.parse(data) : [];
+    return Array.isArray(users) ? users.filter((user) => user && typeof user === "object") : [];
+  } catch {
+    return [];
+  }
 }
+
+const normalizeUsername = (username) => String(username || "").trim().toLocaleLowerCase();
 
 export function saveUser(user) {
   const users = getUsers();
-  const existingIndex = users.findIndex((u) => u.username === user.username);
+  const existingIndex = users.findIndex((u) => normalizeUsername(u.username) === normalizeUsername(user.username));
   
   if (existingIndex >= 0) {
     users[existingIndex] = user;
@@ -27,7 +34,8 @@ export function saveUser(user) {
 
 export function findUserByUsername(username) {
   const users = getUsers();
-  return users.find((u) => u.username === username);
+  const normalizedUsername = normalizeUsername(username);
+  return users.find((u) => normalizeUsername(u.username) === normalizedUsername);
 }
 
 export function findUserByEmail(email) {

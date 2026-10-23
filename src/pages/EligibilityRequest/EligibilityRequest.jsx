@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../../components/Layout/Navbar";
+import { fileMetadata, saveWorkflowRequest } from "../../utils/requestWorkflow";
 import "./EligibilityRequest.css";
 
 const steps = [
@@ -142,6 +143,11 @@ export default function EligibilityRequest() {
     if (step < steps.length) setStep((current) => current + 1);
     else {
       const generatedNumber = `ELG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      saveWorkflowRequest({
+        id: generatedNumber, kind: "eligibility", requestNumber: generatedNumber,
+        createdAt: new Date().toISOString(), status: "review", data: { ...data },
+        documents: [fileMetadata(documents.salaryStatement, "مفردات المرتب"), fileMetadata(documents.identityCard, "صورة بطاقة الهوية")].filter(Boolean),
+      });
       setRequestNumber(generatedNumber);
       setSubmitted(true);
     }

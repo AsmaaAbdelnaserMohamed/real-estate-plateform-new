@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   MapContainer,
@@ -16,6 +16,7 @@ import "leaflet-draw";
 import "./FinanceMap.css";
 import PropertyCard from "../../components/UI/PropertyCard/PropertyCard";
 import * as turf from "@turf/turf";
+import { getWorkflowFiles, getWorkflowRequests } from "../../utils/requestWorkflow";
 
 const { BaseLayer } = LayersControl;
 
@@ -136,7 +137,7 @@ const personIcon = L.divIcon({
 });
 
 // ── Property data ──
-const properties = [
+const BASE_PROPERTIES = [
   { id: 1, gov: "القاهرة", center: "مدينة نصر", areaName: "عباس العقاد", name: "مدينة نصر", title: "شقة بمدينة نصر - عباس العقاد", address: "شارع عباس العقاد", area: 220, finishing: "تشطيب كامل", utilities: "كاملة", price: 1250000, lat: 30.056, lng: 31.337, images: ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c", "https://images.unsplash.com/photo-1560448204-603b3fc33ddc"], video: "https://www.youtube.com/embed/iqlohXTD6Zs" },
   { id: 2, gov: "القاهرة", center: "التجمع الخامس", areaName: "شارع التسعين", name: "التجمع الخامس", title: "شقة بالتجمع الخامس - شارع التسعين", address: "التسعين الشمالي", area: 160, finishing: "نصف تشطيب", utilities: "كاملة", price: 2100000, lat: 30.028, lng: 31.47, images: ["https://images.unsplash.com/photo-1505691938895-1758d7feb511", "https://images.unsplash.com/photo-1493809842364-78817add7ffb"], video: null },
   { id: 3, gov: "القاهرة", center: "التجمع الخامس", areaName: "بيت الوطن", name: "التجمع الخامس", title: "شقة ببيت الوطن - التجمع", address: "حي بيت الوطن", area: 180, finishing: "تشطيب كامل", utilities: "كاملة", price: 2600000, lat: 30.032, lng: 31.48, images: ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688"], video: null },
@@ -159,6 +160,42 @@ const locations = {
 
 // ── Main Component ──
 export default function FinanceMap() {
+  const approvedRequests = useMemo(() => getWorkflowRequests()
+    .filter((request) => request.kind === "unit" && request.status === "eligible" && request.decision === "eligible" && request.reviewerDecisionAt && Number.isFinite(Number(request.location?.lat)) && Number.isFinite(Number(request.location?.lng))), []);
+  const [approvedAssets, setApprovedAssets] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls = [];
+    Promise.all(approvedRequests.map(async (request) => {
+      try {
+        const files = await getWorkflowFiles(request.id);
+        const images = files.filter((file) => file.key.startsWith("photo-") && file.blob.type.startsWith("image/"));
+        const video = files.find((file) => file.key === "video" && file.blob.type.startsWith("video/"));
+        const imageUrls = images.map((file) => { const url = URL.createObjectURL(file.blob); objectUrls.push(url); return url; });
+        const videoUrl = video ? URL.createObjectURL(video.blob) : null;
+        if (videoUrl) objectUrls.push(videoUrl);
+        return [request.id, { images: imageUrls, video: videoUrl }];
+      } catch {
+        return [request.id, { images: [], video: null }];
+      }
+    })).then((entries) => { if (!cancelled) setApprovedAssets(Object.fromEntries(entries)); });
+    return () => { cancelled = true; objectUrls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, [approvedRequests]);
+  const approvedProperties = useMemo(() => approvedRequests.map((request) => {
+      const data = request.data || {};
+      const address = [data.street, data.buildingNumber && `عمارة ${data.buildingNumber}`, data.floor && `الدور ${data.floor}`, data.unitNumber && `وحدة ${data.unitNumber}`].filter(Boolean).join("، ");
+      return {
+        id: `approved-${request.id}`, gov: data.governorate || "", center: data.district || "", areaName: data.street || "",
+        name: data.district || data.governorate || "وحدة معتمدة", title: `${data.unitType || "وحدة"} في ${data.district || data.governorate || "مصر"}`,
+        address: address || data.fullAddress || "", area: Number(data.area) || 0, finishing: data.condition || "غير محدد",
+        utilities: (data.utilities || []).join("، ") || "غير محددة", price: Number(data.price) || 0,
+        lat: Number(request.location.lat), lng: Number(request.location.lng),
+        images: approvedAssets[request.id]?.images || [], video: approvedAssets[request.id]?.video || null,
+        bedrooms: Number(data.rooms) || 0, bathrooms: Number(data.bathrooms) || 0, floor: data.floor || "",
+        unitData: data,
+      };
+    }), [approvedRequests, approvedAssets]);
+  const properties = useMemo(() => [...BASE_PROPERTIES, ...approvedProperties], [approvedProperties]);
   const [gov, setGov] = useState("");
   const [center, setCenter] = useState("");
   const [area, setArea] = useState("");
@@ -339,7 +376,7 @@ export default function FinanceMap() {
   })();
 
   const allDisplayed = [
-    ...new Map([...displayProperties, ...nearbyProperties].map((p) => [p.id, p])).values(),
+    ...new Map([...displayProperties, ...nearbyProperties, ...approvedProperties].map((p) => [p.id, p])).values(),
   ];
 
   // Price histogram
