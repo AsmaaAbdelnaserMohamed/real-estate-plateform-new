@@ -371,6 +371,34 @@ select.control {
   background: #f8fafc;
 }
 
+.row_review td,
+.row_new td,
+.row_visit td {
+  background: #eff6ff;
+}
+
+.row_approved td {
+  background: #ecfdf5;
+}
+
+.row_rejected td {
+  background: #fef2f2;
+}
+
+.row_review:hover td,
+.row_new:hover td,
+.row_visit:hover td {
+  background: #dbeafe;
+}
+
+.row_approved:hover td {
+  background: #d1fae5;
+}
+
+.row_rejected:hover td {
+  background: #fee2e2;
+}
+
 .rowActive td {
   background: var(--blue-soft);
 }
@@ -892,6 +920,15 @@ select.control {
   border-color: #ef4444;
 }
 
+.optionProcessing {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.optionProcessing:hover {
+  border-color: #3b82f6;
+}
+
 .optionText {
   display: flex;
   flex-direction: column;
@@ -934,6 +971,10 @@ select.control {
 
 .optionReject .radio {
   accent-color: var(--red);
+}
+
+.optionProcessing .radio {
+  accent-color: var(--blue);
 }
 
 .formField {
@@ -1104,6 +1145,14 @@ select.control {
   color: var(--text);
   text-align: center;
   line-height: 1.6;
+}
+
+.successSubMessage {
+  margin: -12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
 }
 
 /* ---------------- Responsive ---------------- */

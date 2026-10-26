@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Footer from "../../components/Layout/Footer";
 import Navbar from "../../components/Layout/Navbar";
 import FaqSection from "../../components/FAQ/FaqSection";
 import FinanceMap from "../FinanceMap/FinanceMap";
 import RequestForm from "../RequestForm/RequestForm";
+import Dashbord from "../dashboard/Dashbord.jsx";
+import ValuationService from "../ValuationService/ValuationService.jsx";
 import "./Home.css";
+import "./HomeServices.css";
 import hedearPhoto from "../../assets/Gemini_Generated_Image_16whiz16whiz16wh.png";
 
 const services = [
@@ -33,6 +36,14 @@ const services = [
   },
 ];
 
+services.push({
+  icon: "🧭",
+  title: "التقييم والتسعير الاسترشادي",
+  desc: "اعرف متوسط سعر المتر في أي منطقة باختيار الحدود الإدارية أو الرسم على الخريطة.",
+  color: "#0284c7",
+  to: "/valuation",
+});
+
 const stats = [
   { value: "50K+", label: "مستخدم نشط" },
   { value: "120+", label: "بنك وشركة تمويل" },
@@ -45,6 +56,34 @@ export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [formDefaultType, setFormDefaultType] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [activeService, setActiveService] = useState("finance");
+  const [isServiceFullscreen, setIsServiceFullscreen] = useState(false);
+  const serviceFrameRef = useRef(null);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsServiceFullscreen(
+        document.fullscreenElement === serviceFrameRef.current,
+      );
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () =>
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
+
+  const openServiceFullscreen = async () => {
+    if (document.fullscreenElement === serviceFrameRef.current) {
+      await document.exitFullscreen?.();
+      return;
+    }
+
+    if (document.fullscreenElement) await document.exitFullscreen?.();
+    if (serviceFrameRef.current?.requestFullscreen) {
+      await serviceFrameRef.current.requestFullscreen();
+    } else if (serviceFrameRef.current?.webkitRequestFullscreen) {
+      await serviceFrameRef.current.webkitRequestFullscreen();
+    }
+  };
 
   return (
     <div className="home-page" dir="rtl">
@@ -70,20 +109,28 @@ export default function Home() {
             في جمهورية مصر العربية
           </h1>
           <p className="hero-sub">
-            منصة متكاملة تربط بين المواطن والبنوك وشركات العقارات لتسهيل
-            البحث والتسجيل والتمويل العقاري بأقصى سرعة وأمان.
+            منصة متكاملة تربط بين المواطن والبنوك وشركات العقارات لتسهيل البحث
+            والتسجيل والتمويل العقاري بأقصى سرعة وأمان.
           </p>
 
           <div className="hero-actions">
             <button
               className="btn-primary"
-              onClick={() => document.getElementById("services-section")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() =>
+                document
+                  .getElementById("services-section")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
             >
               ابدأ الآن
             </button>
             <button
               className="btn-outline"
-              onClick={() => document.getElementById("tabs-section")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() =>
+                document
+                  .getElementById("tabs-section")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
             >
               استكشف الخدمات
             </button>
@@ -158,73 +205,186 @@ export default function Home() {
           <div className="tabs-bar">
             <button
               className={`tab-btn ${activeTab === "finance" ? "tab-active" : ""}`}
-              onClick={() => setActiveTab("finance")}
+              onClick={() => {
+                setActiveTab("finance");
+                setActiveService("finance");
+              }}
             >
               🏦 التمويل العقاري
             </button>
 
             <button
               className={`tab-btn ${activeTab === "consult" ? "tab-active" : ""}`}
-              onClick={() => setActiveTab("consult")}
+              onClick={() => {
+                setActiveTab("consult");
+                setActiveService("consult");
+              }}
             >
               📋 التسجيل والاستشارات القانونية
             </button>
 
-            <button className="tab-btn">
-              <Link to="/dashboard" className="tab-btn-reports">
-                📊 التقارير والتحليلات
-              </Link>
+            <button
+              className={`tab-btn ${activeTab === "reports" ? "tab-active" : ""}`}
+              onClick={() => setActiveTab("reports")}
+            >
+              📊 التقارير والتحليلات
+            </button>
+
+            <button
+              className={`tab-btn ${activeTab === "valuation" ? "tab-active" : ""}`}
+              onClick={() => setActiveTab("valuation")}
+            >
+              🧭 التقييم والتسعير الاسترشادي
             </button>
           </div>
 
           {/* ── Finance tab: map fills the panel, zero padding ── */}
-          {activeTab === "finance" && (
-            <div className="tab-panel tab-panel--map">
-              <div className="tab-finance-wrap">
-                <FinanceMap />
+          {activeTab === "finance" && activeService === "finance" && (
+            <div
+              className="tab-panel service-frame-panel"
+              ref={serviceFrameRef}
+            >
+              <div className="service-frame-toolbar">
+                <div>
+                  <span>🏦</span>
+                  <strong>خدمة التمويل العقاري</strong>
+                  <small>
+                    من خلال هذه الخدمة يمكنك الحصول على أفضل عروض التمويل
+                    العقاري من كبرى البنوك المصرية بخطوة واحدة
+                  </small>
+                </div>
+                {/* <button
+                  type="button"
+                  onClick={openServiceFullscreen}
+                  aria-label={isServiceFullscreen ? "✕" : "⛶"}
+                >
+                  {isServiceFullscreen ? "✕ " : "⛶"}
+                </button> */}
+              </div>
+              <div className="tab-panel tab-panel--map">
+                <div className="tab-finance-wrap">
+                  <FinanceMap />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "reports" && (
+            <div
+              className="tab-panel service-frame-panel"
+              ref={serviceFrameRef}
+            >
+              <div className="service-frame-toolbar">
+                <div>
+                  <span>📊</span>
+                  <strong>التقارير والتحليلات</strong>
+                  <small>لوحة متابعة مؤشرات المنصة</small>
+                </div>
+                <button
+                  type="button"
+                  onClick={openServiceFullscreen}
+                  aria-label={isServiceFullscreen ? "✕" : "⛶"}
+                >
+                  {isServiceFullscreen ? "✕" : "⛶"}
+                </button>
+              </div>
+              <div className="service-frame-content service-frame-content--dashboard">
+                <Dashbord />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "valuation" && (
+            <div
+              className="tab-panel service-frame-panel"
+              ref={serviceFrameRef}
+            >
+              <div className="service-frame-toolbar">
+                <div>
+                  <span>🧭</span>
+                  <strong>التقييم والتسعير الاسترشادي</strong>
+                  <small>متوسط سعر المتر حسب المنطقة</small>
+                </div>
+                <button
+                  type="button"
+                  onClick={openServiceFullscreen}
+                  aria-label={isServiceFullscreen ? "✕" : "⛶"}
+                >
+                  {isServiceFullscreen ? "✕ " : "⛶"}
+                </button>
+              </div>
+              <div className="service-frame-content">
+                <ValuationService embedded />
               </div>
             </div>
           )}
 
           {/* ── Consult tab ── */}
-          {activeTab === "consult" && (
-            <div className="tab-panel">
+          {activeTab === "consult" && activeService === "consult" && (
+            <div
+              className="tab-panel service-frame-panel"
+              ref={serviceFrameRef}
+            >
+              <div className="service-frame-toolbar">
+                <div>
+                  <span>📋</span>
+                  <strong>خدمة الاستشارات القانونية العقارية</strong>
+                  <small>
+                    من خلال هذه الخدمة يمكنك الحصول على استشارات قانونية عقارية
+                    متخصصة
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  onClick={openServiceFullscreen}
+                  aria-label={isServiceFullscreen ? "✕" : "⛶"}
+                >
+                  {isServiceFullscreen ? "✕ " : "⛶"}
+                </button>
+              </div>
               <div className="tab-consult-wrap">
+                {/* cards for consult legacy */}
                 <div className="tab-consult-cards">
                   <div className="tab-consult-card">
                     <span className="tab-consult-card-icon">⚖️</span>
                     <div>
-                      <h4 className="tab-consult-card-title">استشارة قانونية عقارية</h4>
+                      <h4 className="tab-consult-card-title">
+                        استشارة قانونية عقارية
+                      </h4>
                       <p className="tab-consult-card-desc">
-                        تواصل مع محامين معتمدين لحل النزاعات العقارية ومراجعة المستندات.
+                        تواصل مع محامين معتمدين لحل النزاعات العقارية ومراجعة
+                        المستندات.
                       </p>
                     </div>
                   </div>
-
                   <div className="tab-consult-card">
                     <span className="tab-consult-card-icon">📋</span>
                     <div>
-                      <h4 className="tab-consult-card-title">تسجيل عقاري رسمي</h4>
+                      <h4 className="tab-consult-card-title">
+                        تسجيل عقاري رسمي
+                      </h4>
                       <p className="tab-consult-card-desc">
                         إجراءات التسجيل في الشهر العقاري بمساندة خبراء معتمدين.
                       </p>
                     </div>
                   </div>
-
                   <div className="tab-consult-card">
                     <span className="tab-consult-card-icon">🕐</span>
                     <div>
-                      <h4 className="tab-consult-card-title">رد خلال 24 ساعة</h4>
+                      <h4 className="tab-consult-card-title">
+                        رد خلال 24 ساعة
+                      </h4>
                       <p className="tab-consult-card-desc">
                         فريقنا يراجع طلبك بسرعة ويعود لك في يوم عمل واحد.
                       </p>
                     </div>
                   </div>
-
                   <div className="tab-consult-card">
                     <span className="tab-consult-card-icon">🎁</span>
                     <div>
-                      <h4 className="tab-consult-card-title">استشارة أولية مجانية</h4>
+                      <h4 className="tab-consult-card-title">
+                        استشارة أولية مجانية
+                      </h4>
                       <p className="tab-consult-card-desc">
                         ابدأ بدون رسوم مبدئية واحصل على توجيه واضح قبل الإجراء.
                       </p>
@@ -261,7 +421,6 @@ export default function Home() {
           }}
         />
       )}
-
 
       <FaqSection />
 

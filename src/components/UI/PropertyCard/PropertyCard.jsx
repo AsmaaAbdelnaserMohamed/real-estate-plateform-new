@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import "./PropertyCard.css";
+import { saveWorkflowRequest } from "../../../utils/requestWorkflow";
 
 const TOTAL_STEPS = 4;
+const DEMO_PANORAMA_SOURCE = "https://threejs.org/manual/examples/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg";
 const PERIOD_OPTIONS = [
   { label: "5 سنوات", years: 5 },
   { label: "10 سنوات", years: 10 },
@@ -73,6 +77,115 @@ function getMonthlyPayment(loanAmount, years, annualRate = 0.125) {
   );
 }
 
+function PanoramaViewer({ source, title, isDemo = false }) {
+  const mountRef = useRef(null);
+  const [status, setStatus] = useState(source ? "loading" : "empty");
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount || !source) return undefined;
+
+    setStatus("loading");
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1100);
+    camera.position.set(0, 0, 0.1);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(mount.clientWidth || 640, mount.clientHeight || 420);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.className = "panorama-canvas";
+    renderer.domElement.setAttribute("aria-label", `جولة 360 داخل ${title}`);
+    mount.appendChild(renderer.domElement);
+
+    const geometry = new THREE.SphereGeometry(100, 64, 40);
+    geometry.scale(-1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({ color: 0x17263a });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 0.1;
+    controls.rotateSpeed = -0.3;
+    controls.zoomSpeed = 0.6;
+
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin("anonymous");
+    const texture = textureLoader.load(
+      source,
+      (loadedTexture) => {
+        loadedTexture.colorSpace = THREE.SRGBColorSpace;
+        material.map = loadedTexture;
+        material.color.set(0xffffff);
+        material.needsUpdate = true;
+        setStatus("ready");
+      },
+      undefined,
+      () => setStatus("error")
+    );
+
+    const resizeObserver = new ResizeObserver(() => {
+      const width = mount.clientWidth;
+      const height = mount.clientHeight;
+      if (!width || !height) return;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    });
+    resizeObserver.observe(mount);
+
+    let frameId;
+    const render = () => {
+      controls.update();
+      renderer.render(scene, camera);
+      frameId = requestAnimationFrame(render);
+    };
+    render();
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      controls.dispose();
+      texture.dispose();
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [source, title]);
+
+  return (
+    <div
+      className="panorama-viewer"
+      ref={mountRef}
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerMove={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+      onWheel={(event) => event.stopPropagation()}
+    >
+      {status === "loading" && <div className="panorama-status">جاري تحميل الجولة 360...</div>}
+      {status === "error" && <div className="panorama-status panorama-status-error">تعذر تحميل صورة الجولة 360</div>}
+      {status === "empty" && (
+        <div className="panorama-empty">
+          <span className="panorama-empty-icon">360°</span>
+          <strong>لا توجد جولة 360 مرفقة بهذه الوحدة</strong>
+          <small>أضف رابط الصورة البانورامية في بيانات الوحدة لتفعيل التجول.</small>
+        </div>
+      )}
+      {status === "ready" && (
+        <>
+          {isDemo && <span className="panorama-demo-label">مشهد تجريبي توضيحي</span>}
+          <span className="panorama-hint">اسحب للمشاهدة · استخدم العجلة للتكبير</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function PropertyCard({ property, onClose }) {
   const images = property.images?.length ? property.images : [];
   const title = property.title || property.name || "وحدة سكنية مميزة";
@@ -82,10 +195,19 @@ function PropertyCard({ property, onClose }) {
   const area = property.area || 0;
   const propertyPrice = Number(property.price) || 0;
   const hasVideo = Boolean(property.video);
+  const realPanoramaSource = property.panorama360 || property.panorama || property.images360?.[0]
+    || property.unitData?.panorama360 || property.unitData?.panorama || property.unitData?.images360?.[0];
+  const panoramaSource = realPanoramaSource || DEMO_PANORAMA_SOURCE;
+  const isDemoPanorama = !realPanoramaSource;
+  const virtualTourSource = property.virtualTour || property.tour360
+    || property.unitData?.virtualTour || property.unitData?.tour360;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showImage, setShowImage] = useState(null);
   const [showVideo, setShowVideo] = useState(false);
+  const [showPanorama, setShowPanorama] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const overlayRef = useRef(null);
   const [showMortgageFlow, setShowMortgageFlow] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedJob, setSelectedJob] = useState(JOB_OPTIONS[0]);
@@ -95,6 +217,14 @@ function PropertyCard({ property, onClose }) {
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
   const [income, setIncome] = useState(25000);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [submittedRequestNumber, setSubmittedRequestNumber] = useState("");
+  const [beneficiary, setBeneficiary] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    nationalId: "",
+  });
 
   useEffect(() => {
     if (images.length === 0) {
@@ -109,7 +239,42 @@ function PropertyCard({ property, onClose }) {
     setShowMortgageFlow(false);
     setShowSuccess(false);
     setCurrentStep(0);
+    setShowPanorama(false);
+    setIsExpanded(false);
+    setSubmittedRequestNumber("");
+    setBeneficiary({ firstName: "", lastName: "", phone: "", email: "", nationalId: "" });
   }, [property]);
+
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return undefined;
+
+    // Leaflet registers native listeners on the map container. A native
+    // bubble listener on the card stops those events after the card target
+    // has handled them, but before they reach the map.
+    const eventNames = [
+      "pointerdown",
+      "pointermove",
+      "pointerup",
+      "mousedown",
+      "mousemove",
+      "mouseup",
+      "touchstart",
+      "touchmove",
+      "touchend",
+      "wheel",
+    ];
+    const stopMapEvent = (event) => event.stopPropagation();
+    eventNames.forEach((eventName) => overlay.addEventListener(eventName, stopMapEvent));
+
+    return () => {
+      eventNames.forEach((eventName) => overlay.removeEventListener(eventName, stopMapEvent));
+    };
+  }, []);
+
+  const stopMapInteraction = (event) => {
+    event.stopPropagation();
+  };
 
   const downPaymentAmount = Math.round((propertyPrice * downPaymentPercent) / 100);
   const loanAmount = Math.max(propertyPrice - downPaymentAmount, 0);
@@ -145,6 +310,10 @@ function PropertyCard({ property, onClose }) {
     setShowSuccess(false);
   };
 
+  const updateBeneficiary = (field) => (event) => {
+    setBeneficiary((current) => ({ ...current, [field]: event.target.value }));
+  };
+
   const goBack = () => {
     if (showSuccess) {
       setShowSuccess(false);
@@ -166,6 +335,62 @@ function PropertyCard({ property, onClose }) {
       return;
     }
 
+    const requestNumber = `MRG-${Date.now().toString().slice(-8)}`;
+    const beneficiaryName = [beneficiary.firstName, beneficiary.lastName].filter(Boolean).join(" ") || "مستفيد جديد";
+    const documentChecks = documents.slice(1).map((document) => Boolean(document.uploaded));
+
+    saveWorkflowRequest({
+      id: requestNumber,
+      kind: "financing",
+      requestNumber,
+      source: "finance-map-property-card",
+      createdAt: new Date().toISOString(),
+      status: "new",
+      propertyId: property.id,
+      beneficiary: { ...beneficiary, name: beneficiaryName },
+      applicant: { ...beneficiary, name: beneficiaryName },
+      property: {
+        id: property.id,
+        title,
+        address,
+        price: propertyPrice,
+        area,
+        type: property.unitData?.unitType || property.type || "وحدة سكنية",
+        governorate: property.gov || property.unitData?.governorate || "",
+        district: property.center || property.unitData?.district || "",
+        lat: property.lat,
+        lng: property.lng,
+      },
+      data: {
+        fullName: beneficiaryName,
+        firstName: beneficiary.firstName,
+        lastName: beneficiary.lastName,
+        phone: beneficiary.phone,
+        email: beneficiary.email,
+        nationalId: beneficiary.nationalId,
+        job: selectedJob,
+        income,
+        bank: selectedBank,
+        periodYears: selectedPeriod.years,
+        downPaymentPercent,
+        loanAmount,
+        monthlyInstallment,
+        propertyId: property.id,
+        propertyTitle: title,
+        propertyAddress: address,
+        propertyPrice,
+        area,
+        governorate: property.gov || property.unitData?.governorate || "",
+        district: property.center || property.unitData?.district || "",
+      },
+      documentChecks,
+      documents: documents.map(({ id, name, uploaded }) => ({ id, name, uploaded })),
+      location: Number.isFinite(Number(property.lat)) && Number.isFinite(Number(property.lng))
+        ? { lat: Number(property.lat), lng: Number(property.lng) }
+        : null,
+    });
+
+    setSubmittedRequestNumber(requestNumber);
     setShowSuccess(true);
   };
 
@@ -185,8 +410,17 @@ function PropertyCard({ property, onClose }) {
   };
 
   return (
-    <div className="property-card-overlay" dir="rtl">
-      <div className="property-card">
+    <div
+      className="property-card-overlay"
+      ref={overlayRef}
+      dir="rtl"
+      onClick={stopMapInteraction}
+      onPointerDown={stopMapInteraction}
+      onPointerMove={stopMapInteraction}
+      onTouchStart={stopMapInteraction}
+      onWheel={stopMapInteraction}
+    >
+      <div className={`property-card${isExpanded ? " property-card--expanded" : ""}`}>
         <div className="gold-line" />
 
         {!showMortgageFlow && (
@@ -194,6 +428,15 @@ function PropertyCard({ property, onClose }) {
           <div className="card-header">
             <button className="close-btn" onClick={onClose} aria-label="إغلاق">
               ×
+            </button>
+            <button
+              type="button"
+              className="card-expand-btn"
+              onClick={() => setIsExpanded((value) => !value)}
+              aria-label={isExpanded ? "تصغير تفاصيل الوحدة" : "تكبير تفاصيل الوحدة"}
+              title={isExpanded ? "تصغير" : "تكبير"}
+            >
+              {isExpanded ? "↙" : "↗"}
             </button>
             <div className="badge">للبيع</div>
             <div className="prop-title">{title}</div>
@@ -276,6 +519,15 @@ function PropertyCard({ property, onClose }) {
             </section>
           )}
 
+          <button type="button" className="panorama-action" onClick={() => setShowPanorama(true)}>
+            <span className="panorama-action-icon">360°</span>
+            <span>
+              <strong>مشاهدة الوحدة بكاميرا 360</strong>
+              <small>تجول داخل الوحدة واسحب المشهد للتصفح</small>
+            </span>
+            <span className="panorama-action-arrow">←</span>
+          </button>
+
           <div className="action-btns">
             <button
               type="button"
@@ -325,24 +577,24 @@ function PropertyCard({ property, onClose }) {
                     <div className="row-2">
                       <div className="field-group">
                         <label className="field-label">الاسم الأول</label>
-                        <input className="field-input" placeholder="أحمد" />
+                        <input className="field-input" placeholder="أحمد" value={beneficiary.firstName} onChange={updateBeneficiary("firstName")} />
                       </div>
                       <div className="field-group">
                         <label className="field-label">الاسم الأخير</label>
-                        <input className="field-input" placeholder="محمد" />
+                        <input className="field-input" placeholder="محمد" value={beneficiary.lastName} onChange={updateBeneficiary("lastName")} />
                       </div>
                     </div>
                     <div className="field-group">
                       <label className="field-label">رقم الهاتف</label>
-                      <input className="field-input" placeholder="01xxxxxxxxx" type="tel" />
+                      <input className="field-input" placeholder="01xxxxxxxxx" type="tel" value={beneficiary.phone} onChange={updateBeneficiary("phone")} />
                     </div>
                     <div className="field-group">
                       <label className="field-label">البريد الإلكتروني</label>
-                      <input className="field-input" placeholder="ahmed@email.com" type="email" />
+                      <input className="field-input" placeholder="ahmed@email.com" type="email" value={beneficiary.email} onChange={updateBeneficiary("email")} />
                     </div>
                     <div className="field-group">
                       <label className="field-label">الرقم القومي</label>
-                      <input className="field-input" placeholder="14 رقم" />
+                      <input className="field-input" placeholder="14 رقم" value={beneficiary.nationalId} onChange={updateBeneficiary("nationalId")} />
                     </div>
                     <div className="field-group">
                       <label className="field-label">جهة العمل</label>
@@ -508,7 +760,7 @@ function PropertyCard({ property, onClose }) {
                 <div className="ref-box">
                   <div className="ref-lbl">رقم الطلب</div>
                   <div className="ref-num">
-                    MRG-2026-{String(property.id || 8847).padStart(4, "0")}
+                    {submittedRequestNumber}
                   </div>
                 </div>
                 <div className="timeline">
@@ -577,6 +829,33 @@ function PropertyCard({ property, onClose }) {
                 allowFullScreen
               />
             )}
+          </div>
+        )}
+
+        {showPanorama && (
+          <div className="panorama-modal" role="dialog" aria-modal="true" aria-label={`جولة 360 داخل ${title}`}>
+            <div className="panorama-modal-card">
+              <div className="panorama-modal-header">
+                <div>
+                  <strong>جولة 360 داخل الوحدة</strong>
+                  <small>{title}</small>
+                </div>
+                <button type="button" className="close-video-btn" onClick={() => setShowPanorama(false)} aria-label="إغلاق الجولة 360">
+                  ×
+                </button>
+              </div>
+              {virtualTourSource ? (
+                <iframe
+                  className="panorama-iframe"
+                  src={virtualTourSource}
+                  title={`جولة 360 داخل ${title}`}
+                  allow="fullscreen; accelerometer; gyroscope"
+                  allowFullScreen
+                />
+              ) : (
+                <PanoramaViewer source={panoramaSource} title={title} isDemo={isDemoPanorama} />
+              )}
+            </div>
           </div>
         )}
       </div>

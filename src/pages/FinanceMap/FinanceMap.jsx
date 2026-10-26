@@ -44,6 +44,110 @@ function ZoomToLocation({ lat, lng }) {
   return null;
 }
 
+function formatPropertyPrice(value) {
+  return Number(value || 0).toLocaleString("ar-EG");
+}
+
+function PropertyResultCard({ property, selected, nearby, onSelect, onOpen }) {
+  const image = property.images?.[0];
+  const isReferenceImage = !property.unitData;
+  const type = property.unitData?.unitType || (property.bedrooms ? "شقة سكنية" : "وحدة سكنية");
+  const location = [property.gov, property.center, property.areaName].filter(Boolean).join(" · ");
+  const estimatedInstallment = property.monthlyInstallment || property.unitData?.monthlyInstallment ||
+    (property.price ? Math.round((property.price * 0.8 * 0.125 / 12)) : 0);
+
+  return (
+    <article className={`result-property-card${selected ? " is-selected" : ""}`} onClick={() => onSelect(property)}>
+      <div className="result-card-image-wrap">
+        {image ? (
+          <img src={image} alt={`صورة مرجعية لعقار ${property.name || property.id}`} className="result-card-image" />
+        ) : (
+          <div className="result-card-placeholder"><span>⌂</span><small>صورة مرجعية</small></div>
+        )}
+        {isReferenceImage && <span className="result-image-label">صورة مرجعية</span>}
+        {nearby && <span className="result-nearby-label">قريب منك</span>}
+        <span className="result-card-type">{type}</span>
+      </div>
+      <div className="result-card-body">
+        <div className="result-card-price">{formatPropertyPrice(property.price)} <small>جنيه</small></div>
+        <h3>{property.title || property.name || "وحدة عقارية"}</h3>
+        <p className="result-card-location">⌖ {location || "مصر"}</p>
+        <div className="result-card-specs">
+          <span>▣ {property.area || "—"} م²</span>
+          {property.bedrooms ? <span>⌂ {property.bedrooms} غرف</span> : null}
+          {property.bathrooms ? <span>♢ {property.bathrooms} حمام</span> : null}
+        </div>
+        <div className="result-card-footer">
+          <span className="result-card-installment">قسط تقريبي <b>{formatPropertyPrice(estimatedInstallment)} ج</b></span>
+          <span className="result-card-reference">#{property.id}</span>
+        </div>
+        <button type="button" className="result-card-action" onClick={(event) => { event.stopPropagation(); onOpen(property); }}>
+          عرض تفاصيل التمويل <span>←</span>
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ResultsPanel({ properties, selected, nearbyProperties, onSelect, onOpen }) {
+  const [expanded, setExpanded] = useState(true);
+  const [large, setLarge] = useState(false);
+  const nearbyIds = new Set(nearbyProperties.map((property) => property.id));
+  const handleCardWheel = (event) => {
+    const scroller = event.currentTarget;
+    event.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation?.();
+
+    // In expanded mode the list becomes a vertical grid, so keep the
+    // browser's native vertical scrolling inside the results container.
+    if (scroller.querySelector(".results-panel-large-marker")) return;
+
+    // In the compact horizontal mode, convert the wheel gesture to a
+    // horizontal card scroll and always cancel the map's wheel interaction.
+    event.preventDefault();
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX)
+      ? event.deltaY
+      : event.deltaX;
+    if (delta) scroller.scrollBy({ left: -delta, behavior: "auto" });
+  };
+
+  return (
+    <section className={`results-panel${expanded ? " results-panel--expanded" : " results-panel--collapsed"}`} aria-label="نتائج البحث">
+      <header className="results-panel-header">
+        <div className="results-panel-heading">
+          <span className="results-panel-icon">⌕</span>
+          <div>
+            <strong>نتائج البحث</strong>
+            <span>{properties.length} عقار مطابق للبحث</span>
+          </div>
+        </div>
+        <div className="results-panel-tools">
+          {expanded && <button type="button" className="results-panel-resize" onClick={() => setLarge((value) => !value)}>^</button>}
+          <span className="results-panel-context">اسحب البطاقات لاستكشاف العقارات</span>
+          <button type="button" className="results-panel-toggle" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+            {expanded ? "⌄ تصغير" : "⌃ عرض النتائج"}
+          </button>
+        </div>
+      </header>
+      {expanded && (
+        <div className="results-card-scroller" onWheelCapture={handleCardWheel}>
+          {large && <span className="results-panel-large-marker" aria-hidden="true" />}
+          {properties.length > 0 ? properties.map((property) => (
+            <PropertyResultCard
+              key={property.id}
+              property={property}
+              selected={selected?.id === property.id}
+              nearby={nearbyIds.has(property.id)}
+              onSelect={onSelect}
+              onOpen={onOpen}
+            />
+          )) : <div className="results-empty-state"><span>⌂</span><strong>لا توجد عقارات مطابقة</strong><small>جرّب تغيير الفلاتر أو تكبير نطاق البحث</small></div>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ── Draw polygon / rectangle ──
 function DrawControl({ setFilteredByDraw, setHasFiltered, setPolygonDrawn, properties, clearDrawRef }) {
   const map = useMap();
@@ -160,8 +264,19 @@ const locations = {
 
 // ── Main Component ──
 export default function FinanceMap() {
+  const [workflowRevision, setWorkflowRevision] = useState(0);
+  useEffect(() => {
+    const refreshWorkflow = () => setWorkflowRevision((value) => value + 1);
+    window.addEventListener("storage", refreshWorkflow);
+    window.addEventListener("workflow-requests-changed", refreshWorkflow);
+    return () => {
+      window.removeEventListener("storage", refreshWorkflow);
+      window.removeEventListener("workflow-requests-changed", refreshWorkflow);
+    };
+  }, []);
+
   const approvedRequests = useMemo(() => getWorkflowRequests()
-    .filter((request) => request.kind === "unit" && request.status === "eligible" && request.decision === "eligible" && request.reviewerDecisionAt && Number.isFinite(Number(request.location?.lat)) && Number.isFinite(Number(request.location?.lng))), []);
+    .filter((request) => request.kind === "unit" && request.status === "eligible" && request.decision === "eligible" && request.reviewerDecisionAt && Number.isFinite(Number(request.location?.lat)) && Number.isFinite(Number(request.location?.lng))), [workflowRevision]);
   const [approvedAssets, setApprovedAssets] = useState({});
   useEffect(() => {
     let cancelled = false;
@@ -238,6 +353,11 @@ export default function FinanceMap() {
   useEffect(() => {
     const onChange = () => {
       const el = document.fullscreenElement;
+      if (!el?.classList.contains("map-container")) {
+        setIsFullscreen(false);
+        setFsContainer(null);
+        return;
+      }
       setIsFullscreen(!!el);
       setFsContainer(el || null);
       if (!el) { setFsSidebarOpen(true); setFsSheetSnap("collapsed"); }
@@ -378,6 +498,13 @@ export default function FinanceMap() {
   const allDisplayed = [
     ...new Map([...displayProperties, ...nearbyProperties, ...approvedProperties].map((p) => [p.id, p])).values(),
   ];
+
+  const handlePropertySelect = (property) => {
+    setSelected(property);
+    if (mapInstance && Number.isFinite(Number(property.lat)) && Number.isFinite(Number(property.lng))) {
+      mapInstance.flyTo([property.lat, property.lng], 18, { duration: 1 });
+    }
+  };
 
   // Price histogram
   const PRICE_BUCKETS = 10;
@@ -870,6 +997,14 @@ export default function FinanceMap() {
               </div>
             )}
 
+            <ResultsPanel
+              properties={allDisplayed}
+              selected={selected}
+              nearbyProperties={nearbyProperties}
+              onSelect={handlePropertySelect}
+              onOpen={(property) => { setSelected(property); setSelectedProperty(property); }}
+            />
+
             {/* Map */}
             <MapContainer center={[30.0444, 31.2357]} zoom={7} className="map-container">
               <MapController setMapInstance={setMapInstance} />
@@ -883,7 +1018,7 @@ export default function FinanceMap() {
                 </BaseLayer>
               </LayersControl>
               {allDisplayed.map((p) => (
-                <Marker key={p.id} position={[p.lat, p.lng]} eventHandlers={{ click: () => setSelectedProperty(p) }}>
+                <Marker key={p.id} position={[p.lat, p.lng]} opacity={selected?.id === p.id ? 1 : 0.78} zIndexOffset={selected?.id === p.id ? 1000 : 0} eventHandlers={{ click: () => { handlePropertySelect(p); setSelectedProperty(p); } }}>
                   <Popup><strong>{p.name}</strong><br />السعر: {p.price.toLocaleString("ar-EG")} جنيه</Popup>
                 </Marker>
               ))}
@@ -923,7 +1058,7 @@ export default function FinanceMap() {
                 </BaseLayer>
               </LayersControl>
               {allDisplayed.map((p) => (
-                <Marker key={p.id} position={[p.lat, p.lng]} eventHandlers={{ click: () => setSelectedProperty(p) }}>
+                <Marker key={p.id} position={[p.lat, p.lng]} opacity={selected?.id === p.id ? 1 : 0.78} zIndexOffset={selected?.id === p.id ? 1000 : 0} eventHandlers={{ click: () => { handlePropertySelect(p); setSelectedProperty(p); } }}>
                   <Popup><strong>{p.name}</strong><br />السعر: {p.price.toLocaleString("ar-EG")} جنيه</Popup>
                 </Marker>
               ))}
@@ -994,7 +1129,20 @@ export default function FinanceMap() {
 
       {/* ── Property Card Modal (shared) ── */}
       {selectedProperty && (
-        <PropertyCard property={selectedProperty} onClose={() => setSelectedProperty(null)} />
+        isFullscreen && fsContainer
+          ? createPortal(
+              <div
+                className="fullscreen-property-card-layer"
+                onWheel={(event) => event.stopPropagation()}
+                onTouchMove={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerMove={(event) => event.stopPropagation()}
+              >
+                <PropertyCard property={selectedProperty} onClose={() => setSelectedProperty(null)} />
+              </div>,
+              fsContainer
+            )
+          : <PropertyCard property={selectedProperty} onClose={() => setSelectedProperty(null)} />
       )}
 
       {/* ══════════════════════════════════════════
@@ -1005,7 +1153,14 @@ export default function FinanceMap() {
       ══════════════════════════════════════════ */}
       {isFullscreen && fsContainer &&
         createPortal(
-          <div className={`fs-overlay${window.innerWidth <= 700 ? " fs-overlay--mobile" : ""}`} dir="rtl">
+          <div className={`fs-overlay${window.innerWidth <= 700 ? " fs-overlay--mobile" : ""} ${fsSidebarOpen ? "fs-overlay--sidebar-open" : "fs-overlay--sidebar-closed"}`} dir="rtl">
+            <ResultsPanel
+              properties={allDisplayed}
+              selected={selected}
+              nearbyProperties={nearbyProperties}
+              onSelect={handlePropertySelect}
+              onOpen={(property) => { setSelected(property); setSelectedProperty(property); }}
+            />
 
             {/* ── DESKTOP fullscreen: sidebar ── */}
             {window.innerWidth > 700 && (

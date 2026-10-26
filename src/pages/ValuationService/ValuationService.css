@@ -1,0 +1,492 @@
+@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap");
+.valuation-page {
+  min-height: 100vh;
+  background: #f4f8fb;
+  color: #102a43;
+  font-family: "Tajawal", sans-serif;
+}
+.valuation-shell {
+  max-width: 1320px;
+  margin: auto;
+  padding: 34px 28px 45px;
+}
+.valuation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 26px;
+}
+.eyebrow {
+  color: #0b72b9;
+  font-size: 13px;
+  font-weight: 800;
+  background: #e0f2fe;
+  padding: 7px 13px;
+  border-radius: 20px;
+}
+.valuation-header h1 {
+  font-size: 34px;
+  color: #102a43;
+  font-weight: 800;
+  margin: 15px 0 7px;
+}
+.valuation-header p {
+  color: #60758a;
+  margin: 0;
+  font-size: 16px;
+}
+.header-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  padding: 14px 20px;
+  border: 1px solid #d9e8f2;
+  border-radius: 14px;
+  box-shadow: 0 7px 22px #153b5d0c;
+}
+.header-badge > span {
+  font-size: 30px;
+  color: #0b72b9;
+}
+.header-badge strong,
+.header-badge small {
+  display: block;
+}
+.header-badge small {
+  color: #7d93a6;
+  font-size: 12px;
+  margin-top: 3px;
+}
+.valuation-workspace {
+  border: 3px solid #153b5d40;
+  display: grid;
+  /* flex-direction: row-reverse; */
+  grid-template-columns: 300px 1fr;
+  /* direction: ltr; */
+  min-height: 670px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 16px 45px #153b5d14;
+}
+.valuation-panel {
+  direction: rtl;
+  padding: 25px 23px;
+  background: #fff;
+  border-left: 1px solid #e4edf3;
+  display: flex;
+  flex-direction: column;
+}
+.panel-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.panel-icon {
+  width: 41px;
+  height: 41px;
+  border-radius: 12px;
+  background: #e4f4fc;
+  color: #0b72b9;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+}
+.panel-heading h2 {
+  font-size: 19px;
+  margin: 0;
+  color: #142f47;
+  font-weight: 800;
+}
+.panel-heading p {
+  font-size: 12px;
+  margin: 3px 0;
+  color: #7b8fa0;
+}
+.query-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e6eef3;
+  margin: 25px 0 22px;
+}
+.query-tabs button {
+  flex: 1;
+  background: none;
+  border: 0;
+  padding: 11px 5px;
+  color: #879aaa;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+  position: relative;
+}
+.query-tabs button.active {
+  color: #0b72b9;
+}
+.query-tabs button.active:after {
+  content: "";
+  height: 3px;
+  position: absolute;
+  bottom: -1px;
+  left: 18%;
+  right: 18%;
+  background: #0b72b9;
+  border-radius: 3px;
+}
+.query-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 17px;
+}
+.query-title > span {
+  font-weight: 800;
+  color: #fff;
+  background: #0b72b9;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.query-title strong,
+.query-title small {
+  display: block;
+}
+.query-title strong {
+  font-size: 14px;
+}
+.query-title small {
+  font-size: 11px;
+  color: #8ba0b0;
+  margin-top: 2px;
+}
+.valuation-field {
+  margin-bottom: 14px;
+}
+.valuation-field label {
+  display: block;
+  font-size: 12px;
+  color: #536b7e;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.search-select {
+  position: relative;
+}
+.search-select-trigger {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #d7e4ec;
+  background: #fbfdfe;
+  border-radius: 9px;
+  padding: 0 13px;
+  color: #18354c;
+  font: 500 13px "Tajawal";
+  cursor: pointer;
+  text-align: right;
+}
+.search-select-trigger:hover {
+  border-color: #75bce2;
+}
+.search-select.is-disabled .search-select-trigger {
+  background: #f1f5f7;
+  color: #b1bec8;
+  cursor: not-allowed;
+}
+.placeholder {
+  color: #9badba;
+}
+.search-select-menu {
+  position: absolute;
+  z-index: 1000;
+  top: 49px;
+  right: 0;
+  left: 0;
+  background: #fff;
+  border: 1px solid #cfe1ed;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px #153b5d20;
+  padding: 7px;
+  max-height: 210px;
+  overflow: auto;
+}
+.search-select-menu input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e1ebf1;
+  border-radius: 7px;
+  padding: 9px;
+  font: 12px "Tajawal";
+  outline: 0;
+  margin-bottom: 5px;
+}
+.search-select-menu button {
+  display: block;
+  width: 100%;
+  text-align: right;
+  border: 0;
+  background: #fff;
+  border-radius: 6px;
+  padding: 8px 9px;
+  color: #34546a;
+  font: 13px "Tajawal";
+  cursor: pointer;
+}
+.search-select-menu button:hover {
+  background: #eaf6fd;
+  color: #0b72b9;
+}
+.empty-option {
+  display: block;
+  color: #9aaeba;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
+}
+.selection-note {
+  font-size: 11px;
+  color: #7090a2;
+  background: #f2f9fd;
+  border-radius: 8px;
+  padding: 10px;
+}
+.selection-note b {
+  color: #0b72b9;
+}
+.valuation-result {
+  margin-top: 19px;
+  padding: 15px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #073b63, #0a669b);
+  color: #fff;
+  box-shadow: 0 8px 18px #0b72b93d;
+}
+.result-label {
+  font-size: 11px;
+  color: #bce4fa;
+}
+.result-price {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 4px 0;
+}
+.result-price span {
+  font-size: 12px;
+  font-weight: 500;
+}
+.result-divider {
+  height: 1px;
+  background: #ffffff33;
+  margin: 10px 0;
+}
+.result-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.result-location > span {
+  font-size: 21px;
+}
+.result-location b,
+.result-location small {
+  display: block;
+}
+.result-location b {
+  font-size: 13px;
+}
+.result-location small {
+  font-size: 10px;
+  color: #b6ddf0;
+  margin-top: 2px;
+}
+.reset-btn {
+  border: 0;
+  background: transparent;
+  color: #8499a9;
+  font: 12px "Tajawal";
+  cursor: pointer;
+  margin-top: auto;
+  padding: 13px;
+}
+.reset-btn:hover {
+  color: #d24646;
+}
+.geo-query {
+  text-align: center;
+  padding: 8px 8px 21px;
+}
+.draw-illustration {
+  font-size: 51px;
+  color: #0b72b9;
+  line-height: 1;
+  margin: 8px;
+}
+.geo-query h3 {
+  margin: 9px 0 7px;
+  font-size: 17px;
+}
+.geo-query p {
+  font-size: 12px;
+  color: #728898;
+  line-height: 1.8;
+}
+.draw-action {
+  width: 100%;
+  margin-top: 13px;
+  padding: 12px;
+  border: 0;
+  border-radius: 9px;
+  background: #0b72b9;
+  color: #fff;
+  font: 700 13px "Tajawal";
+  cursor: pointer;
+}
+.draw-hint {
+  font-size: 11px;
+  color: #94a6b2;
+  background: #f5f8fa;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+}
+.valuation-map-wrap {
+  position: relative;
+  direction: rtl;
+  min-width: 0;
+}
+.valuation-map {
+  width: 100%;
+  height: 100%;
+  min-height: 670px;
+  background: #dfeaf0;
+}
+.map-topbar {
+  position: absolute;
+  z-index: 500;
+  top: 18px;
+  right: 18px;
+  left: 18px;
+  display: flex;
+  justify-content: space-between;
+  background: #ffffffeb;
+  border: 1px solid #deebf2;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px #12395418;
+  font-size: 12px;
+  color: #34566c;
+}
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #1bb66e;
+  border-radius: 50%;
+  margin-left: 6px;
+}
+.map-note {
+  color: #8297a6;
+}
+.map-legend {
+  position: absolute;
+  z-index: 500;
+  bottom: 18px;
+  right: 18px;
+  background: #ffffffe8;
+  padding: 10px 13px;
+  border-radius: 9px;
+  font-size: 11px;
+  color: #557183;
+  display: flex;
+  gap: 14px;
+}
+.map-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-left: 5px;
+}
+.legend-selected {
+  background: #32a7e8;
+}
+.legend-admin {
+  border: 2px solid #98b7c8;
+}
+.draw-result {
+  position: absolute;
+  z-index: 500;
+  left: 18px;
+  bottom: 18px;
+  background: #fff;
+  padding: 10px 13px;
+  border-radius: 9px;
+  display: flex;
+  gap: 8px;
+  box-shadow: 0 4px 18px #1239541a;
+  font-size: 12px;
+}
+.draw-result > span {
+  color: #18a268;
+  font-size: 18px;
+}
+.draw-result small,
+.draw-result b {
+  display: block;
+}
+.draw-result small {
+  color: #8297a6;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.valuation-disclaimer {
+  margin-top: 13px;
+  color: #738c9c;
+  font-size: 12px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .valuation-workspace {
+    grid-template-columns: 1fr;
+  }
+  .valuation-panel {
+    border-left: 0;
+    border-bottom: 1px solid #e4edf3;
+  }
+  .valuation-map-wrap,
+  .valuation-map {
+    min-height: 530px;
+  }
+  .valuation-header {
+    align-items: flex-start;
+    gap: 18px;
+  }
+  .header-badge {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .valuation-shell {
+    padding: 25px 13px;
+  }
+  .valuation-header h1 {
+    font-size: 27px;
+  }
+  .valuation-header p {
+    font-size: 14px;
+  }
+  .valuation-panel {
+    padding: 20px 16px;
+  }
+  .valuation-map,
+  .valuation-map-wrap {
+    min-height: 450px;
+  }
+  .map-note {
+    display: none;
+  }
+}

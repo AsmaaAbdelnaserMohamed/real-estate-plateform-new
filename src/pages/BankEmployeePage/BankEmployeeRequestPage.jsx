@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import styles from "./BankEmployeePage.module.css";
 import Navbar from "../../components/Layout/Navbar";
 import Footer from "../../components/Layout/Footer";
-import { DOC_LABELS, REQUESTS, formatDate } from "./requestData";
+import { DOC_LABELS, formatDate, getBankEmployeeRequests } from "./requestData";
+import { updateWorkflowRequest } from "../../utils/requestWorkflow";
 
 const DEFAULT_DRAFT = {
-  decision: "approve",
+  decision: "processing",
   note: "",
   visitDate: "2026-10-25",
 };
@@ -172,14 +173,26 @@ function UnitMap({ lat, lng, code }) {
 export default function BankEmployeeRequestPage() {
   const navigate = useNavigate();
   const { requestId } = useParams();
+  const [workflowRevision, setWorkflowRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => setWorkflowRevision((value) => value + 1);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("workflow-requests-changed", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("workflow-requests-changed", refresh);
+    };
+  }, []);
+
+  const requests = useMemo(() => getBankEmployeeRequests(), [workflowRevision]);
   const [checks, setChecks] = useState(() =>
-    Object.fromEntries(REQUESTS.map((request) => [request.id, [...request.docs]])),
+    Object.fromEntries(requests.map((request) => [request.id, [...request.docs]])),
   );
   const [drafts, setDrafts] = useState({});
   const [toast, setToast] = useState(null);
   const [successPopup, setSuccessPopup] = useState(false);
   const toastTimer = useRef(null);
-  const active = REQUESTS.find((request) => String(request.id) === requestId);
+  const active = requests.find((request) => String(request.id) === requestId);
   const draft = active
     ? { ...DEFAULT_DRAFT, ...drafts[active.id] }
     : DEFAULT_DRAFT;
@@ -228,8 +241,37 @@ export default function BankEmployeeRequestPage() {
       showToast("اكتب سبب الرفض قبل حفظ القرار", "error");
       return;
     }
+    const nextStatus =
+      draft.decision === "approve"
+        ? "approved"
+        : draft.decision === "reject"
+          ? "rejected"
+          : "review";
+    const now = new Date().toISOString();
+
+    if (active) {
+      const updatedRequest = updateWorkflowRequest(active.workflowId || active.id, {
+        status: nextStatus,
+        decision: draft.decision,
+        bankDecision: draft.decision,
+        bankNote: draft.note,
+        bankVisitDate: draft.visitDate,
+        bankDecisionAt: now,
+        bankNotification: {
+          status: nextStatus,
+          sentAt: now,
+          message: "سيتم إخطار مقدم الطلب بالحالة الحالية.",
+        },
+      });
+
+      if (!updatedRequest) {
+        showToast("تعذر حفظ القرار، حاول مرة أخرى", "error");
+        return;
+      }
+    }
+
     setSuccessPopup(true);
-    setTimeout(() => setSuccessPopup(false), 3000);
+    window.setTimeout(() => navigate("/BankEmployeePage"), 2200);
   };
 
   return (
@@ -461,6 +503,24 @@ export default function BankEmployeeRequestPage() {
                   onChange={() => updateDraft({ decision: "reject" })}
                 />
               </label>
+
+              <label
+                className={`${styles.option} ${draft.decision === "processing" ? styles.optionProcessing : ""}`}
+              >
+                <span className={styles.optionText}>
+                  <span className={styles.optionTitle}>قيد الدراسة والمراجعة</span>
+                  <span className={styles.optionSub}>
+                    يحتاج الطلب إلى استكمال الدراسة قبل إصدار قرار نهائي
+                  </span>
+                </span>
+                <input
+                  type="radio"
+                  name="decision"
+                  className={styles.radio}
+                  checked={draft.decision === "processing"}
+                  onChange={() => updateDraft({ decision: "processing" })}
+                />
+              </label>
             </div>
 
             {draft.decision === "approve" && (
@@ -521,7 +581,7 @@ export default function BankEmployeeRequestPage() {
               <button
                 type="button"
                 className={styles.btnGhost}
-                onClick={() => showToast("تم حفظ القرار كمسودة")}
+                onClick={() => navigate("/BankEmployeePage")}
               >
                 حفظ كمسودة
               </button>
@@ -540,10 +600,10 @@ export default function BankEmployeeRequestPage() {
       )}
 
       {successPopup && (
-        <div className={styles.successPopup}>
+        <div className={styles.successPopup} role="alertdialog" aria-live="polite">
           <div className={styles.successContent}>
             <div className={styles.checkmarkWrapper}>
-              <svg className={styles.checkmark} viewBox="0 0 52 52">
+              <svg className={styles.checkmark} viewBox="0 0 52 52" aria-hidden="true">
                 <circle
                   className={styles.checkmarkCircle}
                   cx="26"
@@ -559,11 +619,15 @@ export default function BankEmployeeRequestPage() {
               </svg>
             </div>
             <p className={styles.successMessage}>
-              تم الحفظ وإرسال الإشعار للعميل بنجاح عبر البريد الإلكتروني
+              تم حفظ القرار بنجاح
+            </p>
+            <p className={styles.successSubMessage}>
+              سيتم إخطار مقدم الطلب بالحالة الحالية
             </p>
           </div>
         </div>
       )}
+
       <Footer />
     </div>
   );

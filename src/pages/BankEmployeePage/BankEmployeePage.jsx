@@ -1,14 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./BankEmployeePage.module.css";
 import Navbar from "../../components/Layout/Navbar";
 import Footer from "../../components/Layout/Footer";
-import { REQUESTS, formatDate } from "./requestData";
+import { formatDate, getBankEmployeeRequests } from "./requestData";
 
 const STATUS_LABELS = {
   review: "قيد الدراسة والمراجعة",
   new: "طلب جديد",
   visit: "بانتظار المعاينة",
+  approved: "الطلبات المقبولة",
+  rejected: "الطلبات المرفوضة",
 };
 
 const MONTHS = [
@@ -77,18 +79,30 @@ export default function BankEmployeePage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(DEFAULT_FILTERS);
   const [applied, setApplied] = useState(DEFAULT_FILTERS);
+  const [workflowRevision, setWorkflowRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => setWorkflowRevision((value) => value + 1);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("workflow-requests-changed", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("workflow-requests-changed", refresh);
+    };
+  }, []);
+
+  const requests = useMemo(() => getBankEmployeeRequests(), [workflowRevision]);
 
   const statusCounts = useMemo(() => {
     const counts = {};
-    REQUESTS.forEach((request) => {
+    requests.forEach((request) => {
       counts[request.status] = (counts[request.status] || 0) + 1;
     });
     return counts;
-  }, []);
+  }, [requests]);
 
   const filtered = useMemo(
     () =>
-      REQUESTS.filter((request) => {
+      requests.filter((request) => {
         const query = applied.query.trim();
         if (
           query &&
@@ -105,7 +119,7 @@ export default function BankEmployeePage() {
           return false;
         return true;
       }),
-    [applied],
+    [applied, requests],
   );
 
   const setField = (key) => (event) =>
@@ -241,7 +255,10 @@ export default function BankEmployeePage() {
                 </thead>
                 <tbody>
                   {filtered.map((request) => (
-                    <tr key={request.id} className={styles.row}>
+                    <tr
+                      key={request.id}
+                      className={`${styles.row} ${styles[`row_${request.status}`] || ""}`}
+                    >
                       <td>
                         <span className={styles.indexBadge}>{request.id}</span>
                       </td>

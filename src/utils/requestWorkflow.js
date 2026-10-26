@@ -1,4 +1,5 @@
 const STORAGE_KEY = "realestateplatform-workflow-requests";
+const STATUS_UPDATES_KEY = "realestateplatform-request-status-updates";
 const FILE_DB_NAME = "realestateplatform-request-files";
 const FILE_STORE = "files";
 
@@ -17,15 +18,38 @@ export function saveWorkflowRequest(request) {
   if (index < 0) requests.unshift(request);
   else requests[index] = request;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+  window.dispatchEvent(new CustomEvent("workflow-requests-changed"));
   return request;
+}
+
+export function getRequestStatusUpdates() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(STATUS_UPDATES_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveRequestStatusUpdate(id, changes) {
+  const updates = getRequestStatusUpdates();
+  updates[String(id)] = {
+    ...(updates[String(id)] || {}),
+    ...changes,
+    updatedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(STATUS_UPDATES_KEY, JSON.stringify(updates));
+  window.dispatchEvent(new CustomEvent("workflow-requests-changed"));
+  return { id, ...updates[String(id)] };
 }
 
 export function updateWorkflowRequest(id, changes) {
   const requests = getWorkflowRequests();
   const index = requests.findIndex((item) => item.id === id);
-  if (index < 0) return null;
+  if (index < 0) return saveRequestStatusUpdate(id, changes);
   requests[index] = { ...requests[index], ...changes, updatedAt: new Date().toISOString() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+  window.dispatchEvent(new CustomEvent("workflow-requests-changed"));
   return requests[index];
 }
 

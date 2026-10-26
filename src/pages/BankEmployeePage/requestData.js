@@ -1,3 +1,5 @@
+import { getRequestStatusUpdates, getWorkflowRequests } from "../../utils/requestWorkflow";
+
 export const DOC_LABELS = [
   {
     title: "شهادة مفردات مرتب معتمدة",
@@ -135,3 +137,71 @@ export const REQUESTS = [
 ];
 
 export const formatDate = (iso) => iso.split("-").reverse().join("-");
+
+export function getWorkflowFinancingRequests() {
+  const statusUpdates = getRequestStatusUpdates();
+  return getWorkflowRequests()
+    .filter((request) => request.kind === "financing")
+    .map((request) => {
+      const data = request.data || {};
+      const property = request.property || {};
+      const beneficiary = request.beneficiary || request.applicant || {};
+      const unitCode = data.unitNumber || property.id || request.propertyId || "—";
+      const district = property.district || data.district || data.address || "—";
+      const area = data.area || property.area || "—";
+      const type = property.type || data.propertyType || "وحدة سكنية";
+      const applicantName = beneficiary.name || data.fullName || "مستفيد جديد";
+      const location = request.location || (property.lat && property.lng ? { lat: property.lat, lng: property.lng } : null);
+      const governorate = property.governorate || data.governorate || "";
+      const branch = governorate.includes("الجيزة") ? "giza" : governorate.includes("الإسكندرية") ? "alex" : "cairo";
+      const statusUpdate = statusUpdates[String(request.id)] || {};
+      const requestStatus = statusUpdate.status || request.status;
+
+      return {
+        id: request.id,
+        workflowId: request.id,
+        unitCode: String(unitCode),
+        clientCode: String(data.nationalId || beneficiary.nationalId || request.id).slice(-6),
+        date: String(request.createdAt || "").slice(0, 10),
+        status:
+          requestStatus === "approved"
+            ? "approved"
+            : requestStatus === "rejected"
+              ? "rejected"
+              : "review",
+        branch,
+        applicant: {
+          name: applicantName,
+          phone: beneficiary.phone || data.phone || "—",
+          email: beneficiary.email || data.email || "—",
+          nationalId: beneficiary.nationalId || data.nationalId || "—",
+        },
+        docs: request.documentChecks || [true, false, true],
+        unit: {
+          district,
+          spec: `${type} (${area} م²)`,
+          deed: "بيانات الملكية مرفقة مع طلب التمويل",
+          value: `${Number(property.price || data.propertyPrice || data.price || 0).toLocaleString("ar-EG")} ج.م`,
+          lat: Number(location?.lat) || 30.0444,
+          lng: Number(location?.lng) || 31.2357,
+        },
+        financing: {
+          loanAmount: data.loanAmount || 0,
+          monthlyInstallment: data.monthlyInstallment || 0,
+          bank: data.bank || "—",
+          periodYears: data.periodYears || 0,
+        },
+        workflowRequest: { ...request, ...statusUpdate },
+      };
+    });
+}
+
+export function getBankEmployeeRequests() {
+  const statusUpdates = getRequestStatusUpdates();
+  const storedRequests = REQUESTS.map((request) => ({
+    ...request,
+    ...(statusUpdates[String(request.id)] || {}),
+  }));
+
+  return [...storedRequests, ...getWorkflowFinancingRequests()];
+}

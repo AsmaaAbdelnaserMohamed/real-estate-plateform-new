@@ -1,0 +1,110 @@
+.service-frame-panel {
+  padding: 0 !important;
+  overflow: hidden;
+  background: #f4f8fb;
+  min-height: 680px;
+}
+:fullscreen .property-card-overlay,
+:-webkit-full-screen .property-card-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+}
+.service-frame-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 18px;
+  background: #fff;
+  border-bottom: 1px solid #dfeaf1;
+  direction: rtl;
+}
+.service-frame-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.service-frame-toolbar > div > span {
+  font-size: 21px;
+}
+.service-frame-toolbar strong,
+.service-frame-toolbar small {
+  display: block;
+  text-align: right;
+}
+.service-frame-toolbar strong {
+  font-size: 14px;
+  color: #123b5c;
+}
+.service-frame-toolbar small {
+  font-size: 10px;
+  color: #8499a9;
+  margin-top: 2px;
+}
+.service-frame-toolbar button {
+  border: 1px solid #0b72b9;
+  background: #0b72b9;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 13px;
+  font:
+    700 11px "Tajawal",
+    sans-serif;
+  cursor: pointer;
+}
+.service-frame-toolbar button:hover {
+  background: #075985;
+}
+.service-frame-content {
+  height: calc(100% - 68px);
+  min-height: 610px;
+  overflow: auto;
+}
+.service-frame-content--dashboard {
+  background: #f5f7fa;
+  direction: rtl;
+}
+.service-frame-content--dashboard .app-layout {
+  min-height: 610px;
+  height: 100%;
+  border-radius: 0;
+}
+.service-frame-content--dashboard .app-main {
+  min-height: 610px;
+}
+.valuation-page--embedded {
+  min-height: 610px;
+}
+.valuation-page--embedded .valuation-shell {
+  padding: 20px 22px 28px;
+}
+.valuation-page--embedded .valuation-header {
+  margin-bottom: 16px;
+}
+.valuation-page--embedded .valuation-header h1 {
+  font-size: 25px;
+}
+.valuation-page--embedded .valuation-workspace {
+  min-height: 540px;
+}
+.valuation-page--embedded .valuation-map {
+  min-height: 540px;
+}
+.valuation-page--embedded .valuation-panel {
+  padding: 18px;
+}
+.valuation-page--embedded .valuation-disclaimer {
+  margin-top: 8px;
+}
+@media (max-width: 900px) {
+  .service-frame-toolbar {
+    align-items: flex-start;
+  }
+  .service-frame-content {
+    min-height: 560px;
+  }
+  .service-frame-content--dashboard .app-layout {
+    min-height: 560px;
+  }
+}

@@ -10,6 +10,7 @@ import BankEmployeeRequestPage from "./pages/BankEmployeePage/BankEmployeeReques
 import ReviewerPage from "./pages/Reviewerpage/Reviewerpage.jsx";
 import EligibilityRequest from "./pages/EligibilityRequest/EligibilityRequest.jsx";
 import AddUnitRequest from "./pages/AddUnitRequest/AddUnitRequest.jsx";
+import ValuationService from "./pages/ValuationService/ValuationService.jsx";
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/eligibility-request" element={<EligibilityRequest />} />
         <Route path="/add-unit" element={<AddUnitRequest />} />
+        <Route path="/valuation" element={<ValuationService />} />
       </Routes>
     </BrowserRouter>
   );
