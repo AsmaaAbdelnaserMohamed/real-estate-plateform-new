@@ -29,11 +29,11 @@ body {
 }
 
 .login-card {
-    height: 96vh;
+    /* height: 96vh; */
     position: relative;
     z-index: 10;
     background: rgba(255, 255, 255, 0.05); /* تقليل التعتيم لزيادة الشفافية */
-    backdrop-filter: blur(15px); /* تنعيم الخلفية */
+    backdrop-filter: blur(100px); /* تنعيم الخلفية */
     -webkit-backdrop-filter: blur(15px);
     padding: 40px;
     border-radius: 24px;
@@ -56,48 +56,32 @@ body {
 }
 
 /* Logo Section */
-.logoImages {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    flex-direction: row-reverse; /* جعل الشعار فوق النص أفضل بصرياً */
-    gap: 15px;
+.login-brand-heading {
     margin-bottom: 25px;
 }
 
-.logo-image {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 16px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    transition: transform 0.4s ease;
+.login-brand-lockup {
+    --brand-item-width: 160px;
+    --brand-logo-height: 58px;
+    --brand-gap: 12px;
+    --brand-text: #f8fafc;
+    --brand-accent: #38bdf8;
 }
 
-.edge-logo{
-    width: 250vh;
+.login-brand-lockup .platform-brand__divider {
+    height: 42px;
 }
 
-.logo-image:hover {
-    transform: rotate(5deg) scale(1.1);
-}
-
-.logoTitle h1 {
-    font-size: 23spx;
-    font-weight: 800;
-    color: #f8fafc; /* لون فاتح ليتناسب مع الخلفية المظلمة */
-    margin: 0;
-    letter-spacing: -0.5px;
+.login-brand-lockup .platform-brand__name {
+    font-size: 1.8rem;
 }
 
 .subtitle {
-    font-size: 14px;
-    color: #94a3b8;
+    font-size: 16px;
+    color: #c5cdd8;
     margin-top: 8px;
-    font-weight: 400;
+    font-weight: bold;
 }
-
 /* Form Styles */
 .login-form {
     margin-top: 30px;
@@ -212,7 +196,33 @@ body {
         padding: 30px 24px;
     }
 
-    .logoTitle h1 {
-        font-size: 22px;
+    .login-brand-lockup {
+        --brand-item-width: 140px;
+        --brand-logo-height: 51px;
+        --brand-gap: 8px;
+    }
+
+    .login-brand-lockup .platform-brand__divider {
+        height: 34px;
+    }
+
+    .login-brand-lockup .platform-brand__name {
+        font-size: 1.4rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .login-brand-lockup {
+        --brand-item-width: 128px;
+        --brand-logo-height: 47px;
+        --brand-gap: 6px;
+    }
+
+    .login-brand-lockup .platform-brand__divider {
+        height: 28px;
+    }
+
+    .login-brand-lockup .platform-brand__name {
+        font-size: 1.2rem;
     }
 }

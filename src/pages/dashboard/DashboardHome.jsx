@@ -1,4 +1,15 @@
-import FinanceMap from "../FinanceMap/FinanceMap.jsx";
+import { useEffect, useState } from "react";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { getWorkflowRequests } from "../../utils/requestWorkflow";
+
+const SOLD_UNIT_ICON = L.divIcon({
+  className: "dashboard-sold-marker",
+  html: "<span>✓</span>",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
 
 const STATUS_CLASS = {
   متاح: "badge--available",
@@ -29,6 +40,73 @@ const StatCard = ({ label, value, badge, badgeType }) => (
     <span className={`stat-badge stat-badge--${badgeType}`}>{badge}</span>
   </div>
 );
+
+function getApprovedWorkflowUnits() {
+  return getWorkflowRequests()
+    .filter(
+      (request) =>
+        request.kind === "unit" &&
+        request.status === "eligible" &&
+        request.decision === "eligible" &&
+        request.reviewerDecisionAt &&
+        Number.isFinite(Number(request.location?.lat)) &&
+        Number.isFinite(Number(request.location?.lng)),
+    )
+    .map((request) => {
+      const data = request.data || {};
+
+      return {
+        id: `approved-${request.id}`,
+        name: data.unitType || "وحدة معتمدة",
+        area: data.fullAddress || [data.governorate, data.district].filter(Boolean).join("، "),
+        price: Number(data.price) || 0,
+        size: Number(data.area) || 0,
+        rooms: data.rooms || "",
+        lat: Number(request.location.lat),
+        lng: Number(request.location.lng),
+        mapStatus: "طلب معتمد",
+      };
+    });
+}
+
+function DashboardMiniMap({ units, approvedUnits }) {
+  const soldUnits = units.filter(
+    (unit) => unit.status === "مباع" && Number.isFinite(Number(unit.lat)) && Number.isFinite(Number(unit.lng)),
+  );
+  const mapUnits = [
+    ...soldUnits.map((unit) => ({ ...unit, mapStatus: "مباعة" })),
+    ...approvedUnits,
+  ];
+
+  return (
+    <MapContainer
+      center={[30.0444, 31.2357]}
+      zoom={7}
+      scrollWheelZoom={false}
+      zoomControl={false}
+      className="dashboard-mini-map-container"
+    >
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {mapUnits.map((unit) => (
+        <Marker key={unit.id} position={[Number(unit.lat), Number(unit.lng)]} icon={SOLD_UNIT_ICON}>
+          <Popup>
+            <div className="dashboard-unit-popup" dir="rtl">
+              <strong>{unit.name || "وحدة مباعة"}</strong>
+              <span>{unit.area || unit.compound || "الموقع غير محدد"}</span>
+              <span>السعر: {Number(unit.price || 0).toLocaleString("ar-EG")} ج.م</span>
+              <span>المساحة: {unit.size || "—"} م²</span>
+              {unit.rooms && <span>الغرف: {unit.rooms}</span>}
+              <small>الحالة: {unit.mapStatus}</small>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
 
 function exportToCSV(data) {
   if (!data?.length) {
@@ -68,6 +146,21 @@ export default function DashboardHome({
   clients,
   onAddUnit,
 }) {
+  const [approvedUnits, setApprovedUnits] = useState([]);
+
+  useEffect(() => {
+    const refreshApprovedUnits = () => setApprovedUnits(getApprovedWorkflowUnits());
+
+    refreshApprovedUnits();
+    window.addEventListener("workflow-requests-changed", refreshApprovedUnits);
+    window.addEventListener("storage", refreshApprovedUnits);
+
+    return () => {
+      window.removeEventListener("workflow-requests-changed", refreshApprovedUnits);
+      window.removeEventListener("storage", refreshApprovedUnits);
+    };
+  }, []);
+
   const soldUnits = units.filter((unit) => unit.status === "مباع");
   const availableUnits = units.filter((unit) => unit.status === "متاح").length;
   const activeRequests = mortgageRequests.filter(
@@ -155,16 +248,9 @@ export default function DashboardHome({
           <span className="map-link">تحديث مباشر</span>
         </div>
 
-  <div className="mini-map">
-      <div className="map-pin pin-1"></div>
-      <div className="map-pin pin-2"></div>
-      <div className="map-pin pin-3"></div>
-      <div className="map-pin pin-4"></div>
-      <div className="map-pin pin-5"></div>
-      <div className="map-pin pin-6"></div>
-      <div className="map-pin pin-7"></div>
-      <div className="map-pin pin-8"></div>
-  </div>
+        <div className="mini-map" aria-label="خريطة مصغرة لمواقع الوحدات">
+          <DashboardMiniMap units={units} approvedUnits={approvedUnits} />
+        </div>
 </div>
 
         <div className="card">

@@ -65,6 +65,15 @@
   background: #f5f7fa;
   direction: rtl;
 }
+.service-frame-content--dashboard .sidebar,
+.service-frame-content--dashboard .sidebar-backdrop,
+.service-frame-content--dashboard .mobile-topbar {
+  display: none !important;
+}
+.service-frame-content--dashboard .app-shell,
+.service-frame-content--dashboard .app-main {
+  width: 100%;
+}
 .service-frame-content--dashboard .app-layout {
   min-height: 610px;
   height: 100%;

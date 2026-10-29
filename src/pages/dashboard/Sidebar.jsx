@@ -177,10 +177,10 @@ export default function Sidebar({ active, onNavigate, isOpen, onClose }) {
             X
           </button>
         </div>
-        {/* 
+        
         <Link className="sidebar-home-link" to="/">
           العودة إلى الرئيسية
-        </Link> */}
+        </Link>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => (

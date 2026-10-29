@@ -1,6 +1,6 @@
 /* ================================================================
    ReviewerPage.module.css  -  Arabic RTL
-   Two themes: green (applicants) / indigo (units)
+   Three themes: green (applicants) / indigo (units) / cyan (consultations)
    ================================================================ */
 
 .themeApplicant {
@@ -17,6 +17,14 @@
   --accent-soft: #eeedfc;
   --accent-border: #cfcdf6;
   --accent-ink: #322d9e;
+}
+
+.themeConsultation {
+  --accent: #087c91;
+  --accent-strong: #066778;
+  --accent-soft: #e6f5f7;
+  --accent-border: #b6e0e5;
+  --accent-ink: #075967;
 }
 
 .page {
@@ -58,14 +66,16 @@
 
 .page button,
 .page input,
-.page select {
+.page select,
+.page textarea {
   font-family: inherit;
   font-size: inherit;
 }
 
 .page button:focus-visible,
 .page input:focus-visible,
-.page select:focus-visible {
+.page select:focus-visible,
+.page textarea:focus-visible {
   outline: 2px solid var(--accent, #0b7d6b);
   outline-offset: 2px;
 }
@@ -73,7 +83,7 @@
 /* ---------------- Tabs ---------------- */
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 8px;
   margin-bottom: 14px;
@@ -117,6 +127,7 @@
 
 .tabLabel {
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .tabCount {
@@ -172,6 +183,16 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+.detailHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.consultationDetail {
+  scroll-margin-top: 20px;
 }
 
 .pill {
@@ -382,6 +403,18 @@
   border: 1px solid var(--bad-border);
 }
 
+.badge_responded {
+  background: #e8f1ff;
+  color: #2456a6;
+  border: 1px solid #bfd2f3;
+}
+
+.badge_scheduled {
+  background: #fff6dd;
+  color: #8a5a00;
+  border: 1px solid #f1d98f;
+}
+
 .linkBtn {
   padding: 2px 8px;
   border: 0;
@@ -409,6 +442,11 @@
 .outlineBtn:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.outlineBtn:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .iconBtn {
@@ -473,6 +511,51 @@
 /* ---------------- Blocks ---------------- */
 .block {
   margin-bottom: 16px;
+}
+
+.locationFrame {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field-bg);
+}
+
+.locationMap {
+  height: 280px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.locationMap :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  direction: ltr;
+}
+
+.reviewerMapMarker {
+  display: grid;
+  place-items: center;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  color: #fff;
+  background: #4640d1;
+  box-shadow: 0 2px 8px rgba(23, 33, 47, 0.3);
+  transform: rotate(-45deg);
+}
+
+.reviewerMapMarker span {
+  font-size: 13px;
+  transform: rotate(45deg);
+}
+
+.locationCoordinates {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-mute);
+  direction: ltr;
+  text-align: right;
 }
 
 .blockTitle {
@@ -669,6 +752,59 @@
   background: currentColor;
 }
 
+.rejectionReason {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--bad-border);
+  border-radius: 12px;
+  background: var(--bad-soft);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rejectionReason b {
+  color: var(--bad);
+}
+
+.rejectionReason textarea {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #d8a0b8;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  direction: rtl;
+  text-align: right;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.rejectionReason textarea:focus {
+  outline: none;
+  border-color: var(--bad);
+  box-shadow: 0 0 0 3px var(--bad-soft);
+}
+
+.rejectionReason textarea::placeholder {
+  color: #9b7181;
+  opacity: 1;
+}
+
+.rejectionReason textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* ---------------- Message preview ---------------- */
 .message {
   margin-bottom: 14px;
@@ -729,7 +865,7 @@
 .modalBackdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -810,6 +946,112 @@
   background: #6e1239;
 }
 
+.consultationCount {
+  align-self: center;
+  color: var(--ink-mute);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.consultationEmpty {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--ink-mute);
+  font-size: 12px;
+}
+
+.consultationActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.consultationActions > .block {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.consultationLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.consultationHint {
+  margin: 0 0 8px;
+  color: var(--ink-mute);
+  font-size: 11px;
+}
+
+.consultationForm {
+  display: grid;
+  gap: 8px;
+}
+
+.consultationTextarea {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.consultationResponses {
+  display: grid;
+  gap: 8px;
+}
+
+.consultationResponse {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg);
+}
+
+.consultationResponse p {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+
+.consultationResponse small {
+  color: var(--ink-mute);
+  font-size: 11px;
+}
+
+.consultationMessage {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--ok-soft);
+  color: #0a7a52;
+  font-weight: 700;
+}
+
+.consultationMessageError {
+  background: var(--bad-soft);
+  color: #b0225a;
+}
+
+.consultationLink {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--accent);
+  direction: ltr;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 /* ---------------- Responsive ---------------- */
 @media (max-width: 560px) {
   .page {
@@ -831,6 +1073,18 @@
   .docs,
   .decision,
   .utilities {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tab:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .consultationActions {
     grid-template-columns: 1fr;
   }
 }

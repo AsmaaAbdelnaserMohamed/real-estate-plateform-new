@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import styles from './ReviewerPage.module.css';
 import Navbar from '../../components/Layout/Navbar';
 import Footer from '../../components/Layout/Footer';
-import { getWorkflowRequests, updateWorkflowRequest } from '../../utils/requestWorkflow';
+import { getWorkflowFiles, getWorkflowRequests, updateWorkflowRequest } from '../../utils/requestWorkflow';
+import ConsultationRequests from './ConsultationRequests';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 /* ------------------------------------------------------------------ */
 /*  Icons (inline SVG, no external library)                            */
@@ -119,6 +123,7 @@ const UNITS = [
   {
     id: 284,
     code: 'UNIT-284-CAI',
+    location: { lat: 29.9602, lng: 31.2569 },
     address: 'القاهرة - المعادي',
     fullAddress: 'القاهرة، المعادي - شارع النصر، عمارة 14، الدور الثالث، شقة 7',
     type: 'شقة سكنية',
@@ -136,6 +141,7 @@ const UNITS = [
   {
     id: 362,
     code: 'UNIT-362-ASY',
+    location: { lat: 27.1809, lng: 31.1837 },
     address: 'أسيوط',
     fullAddress: 'أسيوط، حي الوليدية - شارع الجمهورية، عمارة 6، الدور الثاني، شقة 4',
     type: 'شقة سكنية',
@@ -153,6 +159,7 @@ const UNITS = [
   {
     id: 745,
     code: 'UNIT-745-BNS',
+    location: { lat: 29.6132, lng: 30.9391 },
     address: 'بني سويف - الفشن',
     fullAddress: 'بني سويف، مركز الفشن - شارع المحطة، عمارة 3، الدور الأول، شقة 2',
     type: 'شقة سكنية',
@@ -319,8 +326,14 @@ const TAB_CONFIG = {
   },
 };
 
-const TAB_ORDER = ['applicants', 'units'];
+const TAB_ORDER = ['applicants', 'units', 'consultations'];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const REVIEWER_MAP_ICON = L.divIcon({
+  className: styles.reviewerMapMarker,
+  html: '<span>●</span>',
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+});
 
 /* ------------------------------------------------------------------ */
 /*  Document preview modal                                             */
@@ -329,8 +342,11 @@ function DocModal({ doc, onClose }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (doc.objectUrl) URL.revokeObjectURL(doc.objectUrl);
+    };
+  }, [doc.objectUrl, onClose]);
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose} role="presentation">
@@ -350,6 +366,12 @@ function DocModal({ doc, onClose }) {
         <div className={styles.modalBody}>
           {doc.url ? (
             <iframe title={doc.title} src={doc.url} className={styles.modalFrame} />
+          ) : doc.error ? (
+            <div className={styles.modalPlaceholder}>
+              <Icon name="alert" size={36} />
+              <p>تعذر فتح هذا المستند</p>
+              <small>تأكد من أن الملف ما زال محفوظًا ثم حاول مرة أخرى.</small>
+            </div>
           ) : (
             <div className={styles.modalPlaceholder}>
               <Icon name={doc.icon} size={36} />
@@ -363,6 +385,32 @@ function DocModal({ doc, onClose }) {
   );
 }
 
+function UnitLocationMap({ location, unitId }) {
+  const latitude = Number(location?.lat);
+  const longitude = Number(location?.lng);
+  const hasValidLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
+  if (!hasValidLocation) return null;
+  const position = [latitude, longitude];
+
+  return (
+    <div className={styles.locationFrame}>
+      <div className={styles.blockTitle}>موقع الوحدة على الخريطة</div>
+      <div className={styles.locationMap}>
+        <MapContainer key={unitId} center={position} zoom={16} scrollWheelZoom>
+          <TileLayer
+            attribution="&copy; OpenStreetMap contributors"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <Marker position={position} icon={REVIEWER_MAP_ICON} />
+        </MapContainer>
+      </div>
+      <small className={styles.locationCoordinates}>
+        الإحداثيات: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+      </small>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  One tab: list + search + detail + decision                         */
 /* ------------------------------------------------------------------ */
@@ -372,7 +420,9 @@ function ReviewSection({ config, results, onSubmit, sending }) {
   const [draft, setDraft] = useState({ q: '', filter: '' });
   const [applied, setApplied] = useState({ q: '', filter: '' });
   const [decisions, setDecisions] = useState({});
+  const [rejectionReasons, setRejectionReasons] = useState({});
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [openingDocId, setOpeningDocId] = useState(null);
 
   useEffect(() => {
     if (!items.some((item) => item.id === selectedId)) setSelectedId(items[0]?.id ?? null);
@@ -390,20 +440,52 @@ function ReviewSection({ config, results, onSubmit, sending }) {
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const statusOf = (id) => results[id]?.status ?? 'review';
   const decision = selected ? decisions[selected.id] ?? DEFAULT_DECISION : null;
+  const rejectionReason = selected ? rejectionReasons[selected.id] ?? '' : '';
   const finished = selected ? Boolean(results[selected.id]) : false;
   const isSending = sending === selected?.id;
 
   const applyFilters = () => setApplied(draft);
 
   const submit = () => {
-    if (!selected || !decision || finished || isSending) return;
+    if (!selected || !decision || finished || isSending || (decision === 'ineligible' && !rejectionReason.trim())) return;
+    const message = detail.message(selected, decision);
     onSubmit({
       tab: config.key,
       item: selected,
       decision,
-      message: detail.message(selected, decision),
+      message: decision === 'ineligible'
+        ? `${message}\nسبب الرفض: ${rejectionReason.trim()}`
+        : message,
       successText: detail.successText(selected, decision),
     });
+  };
+
+  const previewDocument = async (doc) => {
+    setOpeningDocId(doc.id);
+    try {
+      if (doc.url) {
+        setPreviewDoc(doc);
+        return;
+      }
+
+      if (!doc.requestId) {
+        setPreviewDoc({ ...doc, error: true });
+        return;
+      }
+      const files = await getWorkflowFiles(doc.requestId);
+      const storedFile = files.find((file) => file.name === doc.meta);
+      if (!storedFile?.blob) {
+        setPreviewDoc({ ...doc, error: true });
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(storedFile.blob);
+      setPreviewDoc({ ...doc, url: objectUrl, objectUrl });
+    } catch {
+      setPreviewDoc({ ...doc, error: true });
+    } finally {
+      setOpeningDocId(null);
+    }
   };
 
   return (
@@ -568,6 +650,8 @@ function ReviewSection({ config, results, onSubmit, sending }) {
 
           {detail.extra?.(selected)}
 
+          {config.key === 'units' && <UnitLocationMap location={selected.location} unitId={selected.id} />}
+
           <div className={styles.block}>
             <div className={styles.blockTitle}>
               <Icon name="clip" size={14} />
@@ -583,8 +667,13 @@ function ReviewSection({ config, results, onSubmit, sending }) {
                     <strong>{d.title}</strong>
                     <small>{d.meta}</small>
                   </div>
-                  <button type="button" className={styles.outlineBtn} onClick={() => setPreviewDoc(d)}>
-                    عرض
+                  <button
+                    type="button"
+                    className={styles.outlineBtn}
+                    onClick={() => previewDocument(d)}
+                    disabled={openingDocId === d.id}
+                  >
+                    {openingDocId === d.id ? 'جاري الفتح...' : 'عرض'}
                   </button>
                 </div>
               ))}
@@ -622,6 +711,20 @@ function ReviewSection({ config, results, onSubmit, sending }) {
             </div>
           </div>
 
+          {decision === 'ineligible' && (
+            <label className={styles.rejectionReason}>
+              <span>سبب الرفض <b>*</b></span>
+              <textarea
+                value={rejectionReason}
+                onChange={(event) => setRejectionReasons((reasons) => ({ ...reasons, [selected.id]: event.target.value }))}
+                placeholder="اكتب سبب عدم أهلية الوحدة..."
+                rows={4}
+                disabled={finished}
+                required
+              />
+            </label>
+          )}
+
           {decision && (
             <div className={`${styles.message} ${decision === 'ineligible' ? styles.messageNo : ''}`}>
               <div className={styles.messageHead}>
@@ -636,7 +739,7 @@ function ReviewSection({ config, results, onSubmit, sending }) {
             type="button"
             className={styles.submit}
             onClick={submit}
-            disabled={!decision || finished || isSending}
+            disabled={!decision || finished || isSending || (decision === 'ineligible' && !rejectionReason.trim())}
           >
             {finished ? 'تم الإرسال مسبقًا' : isSending ? 'جارٍ الإرسال...' : detail.submitLabel}
             {!finished && !isSending && <Icon name="arrowLeft" size={16} />}
@@ -661,7 +764,11 @@ export default function ReviewerPage({ onSubmitDecision }) {
   const [results, setResults] = useState(() => {
     const saved = { applicants: {}, units: {} };
     getWorkflowRequests().forEach((request) => {
-      if ((request.status === 'eligible' || request.status === 'ineligible') && request.reviewerDecisionAt) {
+      if (
+        ['unit', 'eligibility', 'financing'].includes(request.kind)
+        && (request.status === 'eligible' || request.status === 'ineligible')
+        && request.reviewerDecisionAt
+      ) {
         const key = request.kind === 'unit' ? 'units' : 'applicants';
         saved[key][request.id] = { status: request.status };
       }
@@ -671,6 +778,16 @@ export default function ReviewerPage({ onSubmitDecision }) {
   const [sending, setSending] = useState({ applicants: null, units: null });
   const [toast, setToast] = useState(null);
   const [workflowRequests, setWorkflowRequests] = useState(() => getWorkflowRequests());
+
+  useEffect(() => {
+    const refreshRequests = () => setWorkflowRequests(getWorkflowRequests());
+    window.addEventListener('workflow-requests-changed', refreshRequests);
+    window.addEventListener('storage', refreshRequests);
+    return () => {
+      window.removeEventListener('workflow-requests-changed', refreshRequests);
+      window.removeEventListener('storage', refreshRequests);
+    };
+  }, []);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -700,7 +817,12 @@ export default function ReviewerPage({ onSubmitDecision }) {
     const data = request.data || {};
     const isUnit = request.kind === 'unit';
     const fullAddress = data.fullAddress || [data.governorate, data.district, data.area, data.address].filter(Boolean).join('، ');
-    const docs = (request.documents || []).map((doc, index) => ({ ...doc, id: `${request.id}-doc-${index}` }));
+    const docs = (request.documents || []).map((doc, index) => ({
+      ...doc,
+      fileKey: doc.fileKey || doc.id || doc.meta,
+      id: `${request.id}-doc-${index}`,
+      requestId: request.id,
+    }));
     if (isUnit) return {
       id: request.id, workflowRequest: true, data, code: request.requestNumber, address: fullAddress || 'العنوان غير متاح', fullAddress: fullAddress || 'العنوان غير متاح',
       location: request.location,
@@ -719,17 +841,31 @@ export default function ReviewerPage({ onSubmitDecision }) {
     };
   };
 
-  const liveApplicants = workflowRequests.filter((request) => ['eligibility', 'financing', 'consultation'].includes(request.kind)).map(toReviewerItem);
+  const liveApplicants = workflowRequests.filter((request) => ['eligibility', 'financing'].includes(request.kind)).map(toReviewerItem);
   const liveUnits = workflowRequests.filter((request) => request.kind === 'unit').map(toReviewerItem);
+  const liveConsultations = workflowRequests.filter((request) => request.kind === 'consultation');
   const configs = {
     applicants: { ...TAB_CONFIG.applicants, items: [...liveApplicants, ...APPLICANTS] },
     units: { ...TAB_CONFIG.units, items: [...liveUnits, ...UNITS] },
+    consultations: {
+      key: 'consultations',
+      theme: styles.themeConsultation,
+      tabLabel: 'الاستشارات القانونية العقارية',
+      tabIcon: 'file',
+    },
   };
   const pendingCount = (key) => configs[key].items.filter((it) => !results[key][it.id] && it.status !== 'eligible' && it.status !== 'ineligible').length;
 
   const counts = {
     applicants: `${pendingCount('applicants')} نشط`,
     units: `${configs.units.items.length} مسجلة`,
+    consultations: `${new Set(liveConsultations.map((request) => String(request.id))).size} مسجلة`,
+  };
+
+  const handleConsultationUpdate = (id, changes) => {
+    const updatedRequest = updateWorkflowRequest(id, changes);
+    setWorkflowRequests(getWorkflowRequests());
+    return updatedRequest;
   };
 
   return (
@@ -761,12 +897,19 @@ export default function ReviewerPage({ onSubmitDecision }) {
 
         {TAB_ORDER.map((key) => (
           <div key={key} hidden={tab !== key} role="tabpanel">
-            <ReviewSection
-              config={configs[key]}
-              results={results[key]}
-              sending={sending[key]}
-              onSubmit={handleSubmit}
-            />
+            {key === 'consultations' ? (
+              <ConsultationRequests
+                requests={liveConsultations}
+                onUpdateRequest={handleConsultationUpdate}
+              />
+            ) : (
+              <ReviewSection
+                config={configs[key]}
+                results={results[key]}
+                sending={sending[key]}
+                onSubmit={handleSubmit}
+              />
+            )}
           </div>
         ))}
 

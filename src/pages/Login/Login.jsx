@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import edgeProLogo from "../../assets/edge_prologo.png";
-import bankMarkzyLogo from "../../assets/bank_markzy.png";
+import Brand from "../../components/Brand/Brand";
 import { setAuthenticated } from "../../utils/auth";
 import { authenticateUser } from "../../utils/localStorage";
 import "./Login.css";
@@ -25,7 +24,7 @@ export default function Login() {
         minWidth: 200.0,
         scale: 1.0,
         scaleMobile: 1.0,
-        color: 0x2a40,
+        color: 0xd1c2d,
         shininess: 33.0,
         waveHeight: 21.0,
         waveSpeed: 0.4,
@@ -61,18 +60,9 @@ export default function Login() {
       <div className="login-container">
         <div className="login-card">
           <div className="logo-section">
-            <div className="logoImages">
-              <div className="edge-logo">
-                <img src={edgeProLogo} alt="Edge Pro Logo" />
-              </div>
-              <div className="bank-markzylogo">
-                <img src={bankMarkzyLogo} alt="Real Estate Platform Logo" />
-              </div>
-            </div>
-
-            <div className="logoTitle">
-              <h1>Real Estate Platform</h1>
-            </div>
+            <h1 className="login-brand-heading">
+              <Brand className="login-brand-lockup" />
+            </h1>
 
             <p className="subtitle">
               المنصة الموحدة للخدمات العقارية في جمهورية مصر العربية

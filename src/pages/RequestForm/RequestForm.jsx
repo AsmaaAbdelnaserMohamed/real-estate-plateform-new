@@ -1,5 +1,34 @@
 import { useState, useRef, useEffect } from "react";
-import { fileMetadata, saveWorkflowRequest } from "../../utils/requestWorkflow";
+import {
+  fileMetadata,
+  getWorkflowRequests,
+  saveWorkflowFiles,
+  saveWorkflowRequest,
+} from "../../utils/requestWorkflow";
+
+const CONSULTATION_FILE_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
+const CONSULTATION_FILE_EXTENSIONS = /\.(pdf|jpe?g|png)$/i;
+const CONSULTATION_FILE_MAX_SIZE = 10 * 1024 * 1024;
+
+function isValidConsultationFile(file) {
+  return (
+    CONSULTATION_FILE_EXTENSIONS.test(file.name)
+    && file.size <= CONSULTATION_FILE_MAX_SIZE
+    && (!file.type || CONSULTATION_FILE_TYPES.has(file.type))
+  );
+}
+
+function createConsultationRequestNumber() {
+  const timestamp = Date.now().toString().slice(-8);
+  let requestNumber = `CON-${timestamp}`;
+  let suffix = 1;
+  const existingIds = new Set(getWorkflowRequests().map((request) => String(request.id)));
+  while (existingIds.has(requestNumber)) {
+    requestNumber = `CON-${timestamp}-${suffix}`;
+    suffix += 1;
+  }
+  return requestNumber;
+}
 import "./RequestForm.css";
 
 // ─────────────────────────────────────────────
@@ -620,6 +649,10 @@ export default function RequestForm({ onClose, defaultType = null }) {
   const [submitted, setSubmitted] = useState(false);
   const [requestNumber, setRequestNumber] = useState("");
   const [errors, setErrors]       = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState("");
+  const submissionLock = useRef(false);
+  const submissionId = useRef("");
 
   const [data, setData] = useState({
     propertyType: "", governorate: "", district: "", address: "", area: "",
@@ -670,20 +703,61 @@ export default function RequestForm({ onClose, defaultType = null }) {
     return Object.keys(e).length === 0;
   };
 
-  const next = () => {
+  const next = async () => {
+    if (submissionLock.current) return;
     if (!validate()) return;
     if (step < totalSteps) setStep((s) => s + 1);
     else {
-      const requestNumber = `${formType === FORM_TYPES.financing ? "REQ" : "CON"}-${Date.now().toString().slice(-8)}`;
-      setRequestNumber(requestNumber);
-      const attachments = formType === FORM_TYPES.financing
+      submissionLock.current = true;
+      setIsSubmitting(true);
+      setSubmissionError("");
+      try {
+        const currentRequestNumber = submissionId.current || (
+          formType === FORM_TYPES.consultation
+            ? createConsultationRequestNumber()
+            : `${formType === FORM_TYPES.financing ? "REQ" : "CON"}-${Date.now().toString().slice(-8)}`
+        );
+        submissionId.current = currentRequestNumber;
+
+        const consultationFiles = formType === FORM_TYPES.consultation ? data.docs : [];
+        const invalidFile = consultationFiles.find((file) => !isValidConsultationFile(file));
+        if (invalidFile) {
+          setSubmissionError(`الملف "${invalidFile.name}" غير مدعوم أو يتجاوز الحد الأقصى 10 ميجا.`);
+          return;
+        }
+
+        const attachments = formType === FORM_TYPES.financing
         ? [...data.docs.map((file) => fileMetadata(file, "مستند تمويل")), ...data.titleDocs.map((file) => fileMetadata(file, "مستند ملكية"))]
-        : data.docs.map((file) => fileMetadata(file, "مستند استشارة"));
-      saveWorkflowRequest({
-        id: requestNumber, kind: formType, requestNumber, createdAt: new Date().toISOString(), status: "review",
-        data: { ...data }, documents: attachments.filter(Boolean),
-      });
-      setSubmitted(true);
+        : data.docs.map((file, index) => ({
+          ...fileMetadata(file, "مستند استشارة"),
+          fileKey: `consult-doc-${index}`,
+        }));
+
+        if (formType === FORM_TYPES.consultation && consultationFiles.length) {
+          await saveWorkflowFiles(
+            currentRequestNumber,
+            consultationFiles.map((file, index) => ({ key: `consult-doc-${index}`, file })),
+          );
+        }
+
+        saveWorkflowRequest({
+          id: currentRequestNumber,
+          kind: formType,
+          requestNumber: currentRequestNumber,
+          createdAt: new Date().toISOString(),
+          status: "review",
+          data: formType === FORM_TYPES.consultation ? { ...data, docs: [] } : { ...data },
+          documents: attachments.filter(Boolean),
+        });
+        setRequestNumber(currentRequestNumber);
+        setSubmitted(true);
+      } catch (error) {
+        console.error("Failed to save request and attachments", error);
+        setSubmissionError("تعذر حفظ الطلب أو مرفقاته. تحقق من التخزين ثم حاول الإرسال مرة أخرى.");
+      } finally {
+        setIsSubmitting(false);
+        submissionLock.current = false;
+      }
     }
   };
 
@@ -755,12 +829,18 @@ export default function RequestForm({ onClose, defaultType = null }) {
 
         <div className="rf-body">{renderStep()}</div>
 
+        {submissionError && (
+          <p className="rf-error-msg" role="alert">
+            {submissionError}
+          </p>
+        )}
+
         <div className="rf-footer">
-          <button className="rf-btn-back" onClick={back}>
+          <button className="rf-btn-back" onClick={back} disabled={isSubmitting}>
             {step === 1 || (step === 2 && defaultType) ? "إلغاء" : "→ السابق"}
           </button>
-          <button className="btn-primary rf-btn-next" onClick={next}>
-            {step === totalSteps ? "إرسال الطلب ✓" : "التالي ←"}
+          <button className="btn-primary rf-btn-next" onClick={next} disabled={isSubmitting}>
+            {isSubmitting ? "جارٍ حفظ الطلب..." : step === totalSteps ? "إرسال الطلب ✓" : "التالي ←"}
           </button>
         </div>
 

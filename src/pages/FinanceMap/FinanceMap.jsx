@@ -263,7 +263,7 @@ const locations = {
 };
 
 // ── Main Component ──
-export default function FinanceMap() {
+export default function FinanceMap({ showAllByDefault = false }) {
   const [workflowRevision, setWorkflowRevision] = useState(0);
   useEffect(() => {
     const refreshWorkflow = () => setWorkflowRevision((value) => value + 1);
@@ -316,6 +316,7 @@ export default function FinanceMap() {
   const [area, setArea] = useState("");
   const [selected, setSelected] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [mapPointsCleared, setMapPointsCleared] = useState(false);
   const [filteredByDraw, setFilteredByDraw] = useState([]);
   const [hasFiltered, setHasFiltered] = useState(false);
   const [drawMode, setDrawMode] = useState(false);
@@ -451,6 +452,7 @@ export default function FinanceMap() {
   }, [userLocation, nearbyProperties, mapInstance]);
 
   const handleDrawBtnClick = () => {
+    setMapPointsCleared(false);
     setDrawMode((d) => {
       const next = !d;
       setDrawBtnText(next ? "❌ إلغاء الاستعلام المكاني" : "🟦 استعلام مكاني");
@@ -459,6 +461,7 @@ export default function FinanceMap() {
   };
 
   const findNearby = (loc) => {
+    setMapPointsCleared(false);
     setUserLocation(loc);
     setIsUserZooming(true);
     const nearby = properties.filter((p) => {
@@ -476,14 +479,21 @@ export default function FinanceMap() {
     );
   };
 
-  const filteredProperties = properties.filter(
-    (p) =>
-      (gov === "ALL" || !gov || p.gov === gov) &&
-      (!center || p.center === center) &&
-      (!area || p.areaName === area) &&
-      (!priceFilterActive || (p.price >= priceMin && p.price <= priceMax)) &&
-      (!areaFilterActive || !p.area || (p.area >= areaMin && p.area <= areaMax))
-  );
+  const isTagamoaCenter = center === "التجمع";
+  const tagamoaSettlements = ["التجمع الأول", "التجمع الخامس"];
+  const filteredProperties = properties.filter((p) => {
+    const matchesGovernorate = gov === "ALL" || !gov || p.gov === gov;
+    const matchesCenter = !center || (isTagamoaCenter
+      ? tagamoaSettlements.includes(p.center)
+      : p.center === center);
+    const matchesSheikhya = !area || (isTagamoaCenter
+      ? p.center === area
+      : p.areaName === area);
+    const matchesPrice = !priceFilterActive || (p.price >= priceMin && p.price <= priceMax);
+    const matchesArea = !areaFilterActive || !p.area || (p.area >= areaMin && p.area <= areaMax);
+
+    return matchesGovernorate && matchesCenter && matchesSheikhya && matchesPrice && matchesArea;
+  });
 
   const displayProperties = (() => {
     if (drawMode) {
@@ -491,15 +501,25 @@ export default function FinanceMap() {
       const drawIds = new Set(filteredByDraw.map((p) => p.id));
       return filteredProperties.filter((p) => drawIds.has(p.id));
     }
-    if (hasFiltered) return filteredProperties;
+    if (hasFiltered || showAllByDefault) return filteredProperties;
     return [];
   })();
 
-  const allDisplayed = [
-    ...new Map([...displayProperties, ...nearbyProperties, ...approvedProperties].map((p) => [p.id, p])).values(),
-  ];
+  const drawResultIds = new Set(displayProperties.map((p) => p.id));
+  const locationDisplayed = userLocation
+    ? nearbyProperties.filter((property) => {
+      const passesAttributeFilters = filteredProperties.some((item) => item.id === property.id);
+      const passesDrawFilter = !drawMode || drawResultIds.has(property.id);
+      return passesAttributeFilters && passesDrawFilter;
+    })
+    : [];
+  const mapResults = userLocation ? locationDisplayed : displayProperties;
+  const allDisplayed = mapPointsCleared
+    ? []
+    : [...new Map(mapResults.map((p) => [p.id, p])).values()];
 
   const handlePropertySelect = (property) => {
+    setMapPointsCleared(false);
     setSelected(property);
     if (mapInstance && Number.isFinite(Number(property.lat)) && Number.isFinite(Number(property.lng))) {
       mapInstance.flyTo([property.lat, property.lng], 18, { duration: 1 });
@@ -526,9 +546,9 @@ export default function FinanceMap() {
   });
   const areaHistMax = Math.max(...areaHistogram, 1);
 
-  const applyPriceFilter = () => { setPriceFilterActive(true); setHasFiltered(true); setShowPricePanel(false); };
+  const applyPriceFilter = () => { setMapPointsCleared(false); setPriceFilterActive(true); setHasFiltered(true); setShowPricePanel(false); };
   const resetPriceFilter = () => { setPriceMin(PRICE_MIN); setPriceMax(PRICE_MAX); setPriceFilterActive(false); };
-  const applyAreaFilter = () => { setAreaFilterActive(true); setHasFiltered(true); setShowAreaPanel(false); };
+  const applyAreaFilter = () => { setMapPointsCleared(false); setAreaFilterActive(true); setHasFiltered(true); setShowAreaPanel(false); };
   const resetAreaFilter = () => { setAreaMin(AREA_MIN); setAreaMax(AREA_MAX); setAreaFilterActive(false); };
 
  const makeDragHandler =
@@ -606,7 +626,8 @@ export default function FinanceMap() {
   const aMinPct = ((areaMin - AREA_MIN) / (AREA_MAX - AREA_MIN)) * 100;
   const aMaxPct = ((areaMax - AREA_MIN) / (AREA_MAX - AREA_MIN)) * 100;
 
-  const activeFiltersCount = [gov, center, area, priceFilterActive, areaFilterActive, userLocation].filter(Boolean).length;
+  const spatialFilterActive = drawMode || polygonDrawn || filteredByDraw.length > 0;
+  const activeFiltersCount = [gov, center, area, priceFilterActive, areaFilterActive, userLocation, spatialFilterActive].filter(Boolean).length;
   const pricePreviewCount = properties.filter((p) => p.price >= priceMin && p.price <= priceMax).length;
   const areaPreviewCount = properties.filter((p) => !p.area || (p.area >= areaMin && p.area <= areaMax)).length;
   const displayedResultsCount = allDisplayed.length;
@@ -625,10 +646,12 @@ export default function FinanceMap() {
   }, []);
 
   const handleResetAll = () => {
+    setMapPointsCleared(true);
     setFilteredByDraw([]); setHasFiltered(false); setPolygonDrawn(false);
     setDrawMode(false); setDrawBtnText("🟦 استعلام مكاني");
     setGov(""); setCenter(""); setArea("");
-    setUserLocation(null); setNearbyProperties([]); setPopupPos(null);
+    setUserLocation(null); setNearbyProperties([]); setSelected(null); setSelectedProperty(null); setIsUserZooming(false); setPopupPos(null);
+    setSheetSnap("collapsed"); setFsSidebarOpen(true); setFsSheetSnap("collapsed");
     setPriceMin(PRICE_MIN); setPriceMax(PRICE_MAX); setPriceFilterActive(false); setShowPricePanel(false);
     setAreaMin(AREA_MIN); setAreaMax(AREA_MAX); setAreaFilterActive(false); setShowAreaPanel(false);
     if (clearDrawRef.current) clearDrawRef.current();
@@ -819,20 +842,20 @@ export default function FinanceMap() {
         <span className="fpg-label">📍 الموقع</span>
         <div className="fpg-controls">
           <div className="fp-select-wrap">
-            <select className="fp-select" value={gov} onChange={(e) => { setGov(e.target.value); setCenter(""); setArea(""); setHasFiltered(true); setSelected(null); }}>
+            <select className="fp-select" value={gov} onChange={(e) => { setMapPointsCleared(false); setGov(e.target.value); setCenter(""); setArea(""); setHasFiltered(true); setSelected(null); }}>
               <option value="">المحافظة</option>
               {Object.keys(locations).map((g) => <option key={g}>{g}</option>)}
               <option value="ALL">الكل</option>
             </select>
           </div>
           <div className="fp-select-wrap">
-            <select className="fp-select" value={center} onChange={(e) => { setCenter(e.target.value); setArea(""); setHasFiltered(true); setSelected(null); }}>
+            <select className="fp-select" value={center} onChange={(e) => { setMapPointsCleared(false); setCenter(e.target.value); setArea(""); setHasFiltered(true); setSelected(null); }}>
               <option value="">المركز</option>
               {gov && locations[gov] && Object.keys(locations[gov]).map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div className="fp-select-wrap">
-            <select className="fp-select" value={area} onChange={(e) => { setArea(e.target.value); setHasFiltered(true); setSelected(null); }}>
+            <select className="fp-select" value={area} onChange={(e) => { setMapPointsCleared(false); setArea(e.target.value); setHasFiltered(true); setSelected(null); }}>
               <option value="">الشياخة</option>
               {gov && center && locations[gov]?.[center]?.map((a) => <option key={a}>{a}</option>)}
             </select>

@@ -1820,10 +1820,11 @@
 
 /* sidebar body range-panel positioning inside fullscreen */
 .fs-sidebar .fm-sidebar-body .filter-pill-popup.range-panel {
-  right: var(--sidebar-w, 300px);
+  position: absolute;
+  right: 0;
   left: auto;
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(100% + 8px);
+  transform: none;
   z-index: 99999;
   width: 280px;
 }

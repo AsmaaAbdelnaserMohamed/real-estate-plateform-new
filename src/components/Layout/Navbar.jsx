@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { clearAuthenticated, isAuthenticated, getCurrentUser } from "../../utils/auth";
 import "./Navbar.css";
-import edgeProLogo from "../../assets/edge_prologo.png";
+import Brand from "../Brand/Brand";
 
 const NAV_ITEMS = [
   { label: "الرئيسية", to: "/" },
@@ -125,11 +125,7 @@ export default function Navbar() {
         aria-label="Real Estate Platform"
         onClick={close}
       >
-        <img
-          src={edgeProLogo}
-          alt="EDGE PRO logo"
-          className="nav-logo-img"
-        />
+        <Brand />
       </Link>
 
       {/* ── Desktop nav links (center) ─────────────────────── */}

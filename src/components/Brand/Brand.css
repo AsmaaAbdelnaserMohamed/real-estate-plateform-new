@@ -1,0 +1,39 @@
+.platform-brand {
+  --brand-item-width: 132px;
+  --brand-logo-height: 48px;
+  --brand-gap: 8px;
+  display: inline-grid;
+  grid-template-columns: var(--brand-item-width) 1px var(--brand-item-width);
+  align-items: center;
+  gap: var(--brand-gap);
+  color: var(--brand-text, var(--nav-text, #f1f5f9));
+  white-space: nowrap;
+}
+
+.platform-brand__logo {
+  display: block;
+  width: 100%;
+  height: var(--brand-logo-height);
+  object-fit: contain;
+}
+
+.platform-brand__divider {
+  height: 30px;
+  background: currentColor;
+  opacity: 0.35;
+  justify-self: center;
+}
+
+.platform-brand__name {
+  width: 100%;
+  color: inherit;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-align: center;
+}
+
+.platform-brand__name span {
+  color: var(--brand-accent, var(--nav-accent, #38bdf8));
+}
