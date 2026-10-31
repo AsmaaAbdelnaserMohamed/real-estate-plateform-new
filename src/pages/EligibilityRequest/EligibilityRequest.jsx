@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../../components/Layout/Navbar";
+import { getCurrentUser } from "../../utils/auth";
 import { fileMetadata, saveWorkflowRequest } from "../../utils/requestWorkflow";
 import "./EligibilityRequest.css";
 
@@ -98,9 +99,36 @@ function ReviewGroup({ title, fields, data }) {
   );
 }
 
-export default function EligibilityRequest() {
+export default function EligibilityRequest({
+  registrationMode = false,
+  initialProfile,
+  onComplete,
+}) {
   const [step, setStep] = useState(1);
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState(() => {
+    const user = registrationMode ? null : getCurrentUser();
+    const savedProfile = initialProfile || user?.eligibilityProfile || {};
+    const profileData = Object.fromEntries(
+      Object.keys(initialData).map((field) => [field, savedProfile[field] ?? ""]),
+    );
+    return {
+      ...initialData,
+      ...profileData,
+      fullName:
+        savedProfile.fullName ||
+        [user?.firstName, user?.lastName, initialProfile?.firstName, initialProfile?.lastName]
+          .filter(Boolean)
+          .join(" "),
+      phone:
+        savedProfile.phone ||
+        user?.phone ||
+        initialProfile?.phone ||
+        user?.companyPhone ||
+        user?.bankPhone ||
+        "",
+      nationalId: savedProfile.nationalId || user?.nationalId || initialProfile?.nationalId || "",
+    };
+  });
   const [documents, setDocuments] = useState(initialDocuments);
   const [submitted, setSubmitted] = useState(false);
   const [requestNumber, setRequestNumber] = useState("");
@@ -143,6 +171,15 @@ export default function EligibilityRequest() {
     if (step < steps.length) setStep((current) => current + 1);
     else {
       const generatedNumber = `ELG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      if (registrationMode) {
+        onComplete({
+          data: { ...data },
+          documents: { ...documents },
+          requestNumber: generatedNumber,
+        });
+        return;
+      }
+
       saveWorkflowRequest({
         id: generatedNumber, kind: "eligibility", requestNumber: generatedNumber,
         createdAt: new Date().toISOString(), status: "review", data: { ...data },
@@ -153,7 +190,7 @@ export default function EligibilityRequest() {
     }
   };
 
-  if (submitted) {
+  if (submitted && !registrationMode) {
     return (
       <div className="eligibility-page" dir="rtl">
         <Navbar />
@@ -176,16 +213,34 @@ export default function EligibilityRequest() {
   }
 
   return (
-    <div className="eligibility-page" dir="rtl">
-      <Navbar />
+    <div
+      className={`eligibility-page${registrationMode ? " eligibility-page--embedded" : ""}`}
+      dir="rtl"
+    >
+      {!registrationMode && <Navbar />}
       <main className="eligibility-shell">
+        {registrationMode && (
+          <div className="eligibility-registration-note" role="note">
+            <span className="eligibility-registration-note-icon" aria-hidden="true">
+              🔒
+            </span>
+            <div>
+              <strong>لماذا نطلب هذه البيانات؟</strong>
+              <p>
+                نستخدمها للتحقق من أهليتك للحصول على تمويل عقاري ومساعدتك في
+                الوصول إلى وحدات تناسب قدرتك الشرائية بسرعة أكبر. بياناتك
+                الشخصية ومستنداتك سرية ومحمية، وتُستخدم لهذا الغرض فقط.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="eligibility-heading">
           <div>
             <span className="form-kicker">خدمة التحقق من الأهلية</span>
             <h1>طلب التحقق من الأهلية</h1>
             <p>أدخل بياناتك بدقة لمساعدتنا على تقييم أهليتك وتقديم الخدمة المناسبة لك.</p>
           </div>
-          <Link className="back-home" to="/">العودة للرئيسية</Link>
+          {!registrationMode && <Link className="back-home" to="/">العودة للرئيسية</Link>}
         </div>
 
         <section className="eligibility-card">

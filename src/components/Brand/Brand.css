@@ -35,5 +35,5 @@
 }
 
 .platform-brand__name span {
-  color: var(--brand-accent, var(--nav-accent, #38bdf8));
+  color: var(--nav-accent, #38bdf8);
 }

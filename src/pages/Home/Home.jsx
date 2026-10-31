@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Footer from "../../components/Layout/Footer";
 import Navbar from "../../components/Layout/Navbar";
 import FaqSection from "../../components/FAQ/FaqSection";
@@ -45,13 +45,30 @@ services.push({
 });
 
 const stats = [
-  { value: "50K+", label: "مستخدم نشط" },
-  { value: "120+", label: "بنك وشركة تمويل" },
-  { value: "98%", label: "نسبة رضا العملاء" },
-  { value: "24/7", label: "دعم فني متواصل" },
+  {
+    value: "01",
+    label: "اختر الخدمة",
+    detail: "تمويل أو تقييم أو استشارة",
+  },
+  {
+    value: "02",
+    label: "قدّم طلبك",
+    detail: "أكمل بياناتك بسهولة",
+  },
+  {
+    value: "03",
+    label: "تابع خطواتك",
+    detail: "ابقَ على اطلاع بحالة طلبك",
+  },
+  {
+    value: "04",
+    label: "اتخذ قرارك",
+    detail: "بمعلومات أوضح",
+  },
 ];
 
 export default function Home() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("finance");
   const [showForm, setShowForm] = useState(false);
   const [formDefaultType, setFormDefaultType] = useState(null);
@@ -71,6 +88,14 @@ export default function Home() {
       document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
+  useEffect(() => {
+    if (!location.hash) return;
+
+    document
+      .getElementById(location.hash.slice(1))
+      ?.scrollIntoView({ behavior: "smooth" });
+  }, [location.hash]);
+
   const openServiceFullscreen = async () => {
     if (document.fullscreenElement === serviceFrameRef.current) {
       await document.exitFullscreen?.();
@@ -89,32 +114,26 @@ export default function Home() {
     <div className="home-page" dir="rtl">
       <Navbar />
 
-      {/* ── Hero ── */}
       <section className="hero home-hero" dir="rtl">
-        <img src={hedearPhoto} alt="EDGE PRO logo" className="bg-video" />
-        <div className="heroShadow" />
-        <div className="hero-overlay" />
-        <div className="hero-particles">
-          {[...Array(6)].map((_, index) => (
-            <span key={index} className={`particle p${index + 1}`} />
-          ))}
-        </div>
-
         <div className="home-hero-content">
-          <div className="hero-badge">🏛️ الجهة الرسمية للخدمات العقارية</div>
+          <div className="hero-badge">
+            <span className="hero-badge-mark" aria-hidden="true">
+              EDGE PRO
+            </span>
+            <span>بوابتك الرقمية للخدمات العقارية</span>
+          </div>
           <h1 className="hero-title">
-            المنصة التفاعلية
-            <span className="hero-title-highlight"> للخدمات العقارية</span>
-            <br />
-            في جمهورية مصر العربية
+            خطوتك الأولى نحو
+            <span className="hero-title-highlight"> عقار أفضل</span>
           </h1>
           <p className="hero-sub">
-            منصة متكاملة تربط بين المواطن والبنوك وشركات العقارات لتسهيل البحث
-            والتسجيل والتمويل العقاري بأقصى سرعة وأمان.
+            كل ما تحتاجه لاتخاذ قرارك العقاري في مكان واحد؛ من التمويل والتقييم
+            إلى التسجيل والاستشارات، بتجربة رقمية واضحة وسهلة.
           </p>
 
           <div className="hero-actions">
             <button
+              type="button"
               className="btn-primary"
               onClick={() =>
                 document
@@ -122,9 +141,11 @@ export default function Home() {
                   ?.scrollIntoView({ behavior: "smooth" })
               }
             >
-              ابدأ الآن
+              استكشف خدماتنا
+              <span aria-hidden="true">←</span>
             </button>
             <button
+              type="button"
               className="btn-outline"
               onClick={() =>
                 document
@@ -132,35 +153,44 @@ export default function Home() {
                   ?.scrollIntoView({ behavior: "smooth" })
               }
             >
-              استكشف الخدمات
+              ابدأ رحلتك
             </button>
           </div>
 
           <div className="hero-trust">
-            <span>✅ معتمد من وزارة الإسكان</span>
-            <span>✅ مرتبط بالسجل العقاري الرسمي</span>
-            <span>✅ أمان بنكي 256-bit</span>
+            <span>
+              <span aria-hidden="true">✓</span> خدمات عقارية متكاملة
+            </span>
+            <span>
+              <span aria-hidden="true">✓</span> خطوات رقمية واضحة
+            </span>
           </div>
         </div>
 
-        <div className="hero-scroll-hint">
-          <span>↓</span>
+        <div className="hero-visual" aria-hidden="true">
+          <div
+            className="hero-image-frame"
+            style={{ backgroundImage: `url("${hedearPhoto}")` }}
+          >
+            <div className="hero-image-shade" />
+          </div>
         </div>
       </section>
 
-      {/* ── Stats ── */}
       <section className="stats-section">
         <div className="stats-grid">
           {stats.map((item) => (
             <div className="stat-card" key={item.label}>
               <div className="stat-value">{item.value}</div>
-              <div className="stat-label">{item.label}</div>
+              <div>
+                <div className="stat-label">{item.label}</div>
+                <p className="stat-detail">{item.detail}</p>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Services ── */}
       <section className="services-section" id="services-section">
         <div className="section-header">
           <span className="section-tag">خدماتنا</span>
@@ -194,7 +224,46 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Tabs ── */}
+      <section className="journey-section" aria-labelledby="journey-title">
+        <div className="journey-inner">
+          <div className="section-header">
+            <span className="section-tag">رحلتك العقارية</span>
+            <h2 className="section-title" id="journey-title">
+              تجربة أسهل، من أول خطوة
+            </h2>
+            <p className="section-desc">
+              ابدأ من الخدمة المناسبة لك، ودع المنصة ترشدك إلى الخطوة التالية.
+            </p>
+          </div>
+          <div className="journey-grid">
+            <article className="journey-card">
+              <span className="journey-number">01</span>
+              <span className="journey-icon" aria-hidden="true">
+                ◈
+              </span>
+              <h3>حدد احتياجك</h3>
+              <p>اختر من خدمات التمويل أو التقييم أو التسجيل والاستشارات.</p>
+            </article>
+            <article className="journey-card">
+              <span className="journey-number">02</span>
+              <span className="journey-icon" aria-hidden="true">
+                ↗
+              </span>
+              <h3>أرسل طلبك</h3>
+              <p>أدخل البيانات المطلوبة لبدء رحلتك الرقمية بكل وضوح.</p>
+            </article>
+            <article className="journey-card">
+              <span className="journey-number">03</span>
+              <span className="journey-icon" aria-hidden="true">
+                ✓
+              </span>
+              <h3>تابع وتعرّف</h3>
+              <p>تابع طلبك واستفد من المعلومات التي تساعدك على اتخاذ القرار.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section className="tabs-section" id="tabs-section">
         <div className="section-header">
           <span className="section-tag">الخدمات التفاعلية</span>
@@ -308,7 +377,16 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={openServiceFullscreen}
-                  aria-label={isServiceFullscreen ? "✕" : "⛶"}
+                  aria-label={
+                    isServiceFullscreen
+                      ? "الخروج من وضع ملء الشاشة"
+                      : "تكبير إطار التقييم إلى ملء الشاشة"
+                  }
+                  title={
+                    isServiceFullscreen
+                      ? "الخروج من وضع ملء الشاشة"
+                      : "تكبير إطار التقييم إلى ملء الشاشة"
+                  }
                 >
                   {isServiceFullscreen ? "✕ " : "⛶"}
                 </button>
@@ -424,7 +502,6 @@ export default function Home() {
 
       <FaqSection />
 
-      {/* ── CTA ── */}
       <section className="cta-section">
         <div className="cta-inner">
           <h2 className="cta-title">جاهز للبدء؟</h2>
@@ -437,11 +514,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Chat widget ── */}
       <>
         <button
+          type="button"
           className={`chat-toggle-btn ${chatOpen ? "open" : ""}`}
           onClick={() => setChatOpen((open) => !open)}
+          aria-label={chatOpen ? "إغلاق المساعد الذكي" : "فتح المساعد الذكي"}
+          aria-expanded={chatOpen}
         >
           {chatOpen ? "✕" : "💬"}
         </button>
@@ -449,7 +528,13 @@ export default function Home() {
         <div className={`chat-widget ${chatOpen ? "show" : ""}`}>
           <div className="chat-header">
             <span>المساعد الذكي</span>
-            <button onClick={() => setChatOpen(false)}>✕</button>
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              aria-label="إغلاق المساعد الذكي"
+            >
+              ✕
+            </button>
           </div>
           <iframe
             src="https://chat-put-2che.vercel.app/"

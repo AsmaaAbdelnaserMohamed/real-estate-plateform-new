@@ -28,6 +28,25 @@ const STATUS_LABELS = {
   ineligible: 'مغلق',
 };
 
+const REQUEST_FIELD_GROUPS = [
+  {
+    title: 'بيانات مقدم الاستشارة',
+    keys: ['fullName', 'consultantName', 'name', 'consultantPhone', 'phone', 'consultantEmail', 'email'],
+  },
+  {
+    title: 'موضوع الاستشارة والتواصل',
+    keys: ['consultTopic', 'consultationTopic', 'topic', 'urgency', 'preferredContact'],
+  },
+  {
+    title: 'تفاصيل الاستشارة',
+    keys: ['consultDetails'],
+  },
+  {
+    title: 'بيانات العقار محل الاستشارة',
+    keys: ['propertyType', 'governorate', 'district', 'address', 'fullAddress'],
+  },
+];
+
 const EMPTY_APPOINTMENT = {
   type: 'zoom',
   dateTime: '',
@@ -101,6 +120,17 @@ function requestFields(data = {}) {
     }));
 }
 
+function groupedRequestFields(fields) {
+    const groups = REQUEST_FIELD_GROUPS.map((group) => ({
+      title: group.title,
+      fields: fields.filter((field) => group.keys.includes(field.key)),
+    })).filter((group) => group.fields.length);
+    const knownKeys = new Set(REQUEST_FIELD_GROUPS.flatMap((group) => group.keys));
+    const additionalFields = fields.filter((field) => !knownKeys.has(field.key));
+    if (additionalFields.length) groups.push({ title: 'بيانات إضافية', fields: additionalFields });
+    return groups;
+}
+
 function statusClass(status) {
   if (['review', 'responded', 'scheduled', 'eligible', 'ineligible'].includes(status)) {
     return styles[`badge_${status}`];
@@ -113,6 +143,8 @@ function ConsultationIcon({ name, size = 16 }) {
     ? <path d="m6 6 12 12M18 6 6 18" />
     : name === 'search'
       ? <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>
+      : name === 'external'
+        ? <><path d="M14 4h6v6" /><path d="m20 4-9 9" /><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" /></>
       : <path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5l-4 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />;
   return (
     <svg
@@ -131,7 +163,7 @@ function ConsultationIcon({ name, size = 16 }) {
   );
 }
 
-export default function ConsultationRequests({ requests, onUpdateRequest }) {
+export default function ConsultationRequests({ requests, onUpdateRequest, onFeedback }) {
   const [selectedId, setSelectedId] = useState(() => requests[0]?.id ?? null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -196,14 +228,14 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
     setMessage(null);
     try {
       await onUpdateRequest(selected.id, changes);
-      setMessage({
-        type: 'success',
-        text: action === 'reply' ? 'تم حفظ الرد في سجل الطلب.' : 'تم حفظ الموعد في سجل الطلب.',
-      });
+      onFeedback?.(
+        'success',
+        action === 'reply' ? 'تم حفظ الرد في سجل طلب الاستشارة بنجاح.' : 'تم حفظ موعد الاستشارة بنجاح.',
+      );
       return true;
     } catch (error) {
       console.error('Failed to update consultation request', error);
-      setMessage({ type: 'error', text: 'تعذّر حفظ التحديث. يُرجى المحاولة مرة أخرى.' });
+      onFeedback?.('error', 'تعذّر حفظ التحديث. يُرجى المحاولة مرة أخرى.');
       return false;
     } finally {
       setBusy('');
@@ -230,7 +262,11 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
     if (!selected || busy) return;
     const appointmentDate = new Date(appointment.dateTime);
     if (!Number.isFinite(appointmentDate.getTime())) {
-      setMessage({ type: 'error', text: 'يرجى إدخال تاريخ ووقت صالحين للموعد.' });
+      onFeedback?.('error', 'يرجى إدخال تاريخ ووقت صالحين للموعد.');
+      return;
+    }
+    if (appointmentDate <= new Date()) {
+      onFeedback?.('error', 'يجب اختيار موعد في وقت لاحق من الآن.');
       return;
     }
     const savedAppointment = {
@@ -272,6 +308,10 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
     } finally {
       setBusy('');
     }
+  };
+
+  const openZoomScheduler = () => {
+    window.open('https://zoom.us/meeting/schedule', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -405,7 +445,7 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
               </div>
             </header>
 
-            <div className={styles.fields}>
+            <div className={styles.consultationRequestGroups}>
               <div className={styles.field} style={{ gridColumn: 'span 6' }}>
                 <span className={styles.fieldLabel}>رقم الطلب</span>
                 <div className={`${styles.fieldValue} ${styles.fieldMono}`}>
@@ -416,11 +456,21 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
                 <span className={styles.fieldLabel}>تاريخ التسجيل</span>
                 <div className={styles.fieldValue}>{displayDate(selected.createdAt)}</div>
               </div>
-              {requestFields(selected.data).map((field) => (
-                <div key={field.key} className={styles.field} style={{ gridColumn: 'span 12' }}>
-                  <span className={styles.fieldLabel}>{field.label}</span>
-                  <div className={styles.fieldValue}>{field.value}</div>
-                </div>
+              {groupedRequestFields(requestFields(selected.data)).map((group) => (
+                <section key={group.title} className={styles.consultationGroup}>
+                  <h3>{group.title}</h3>
+                  <div className={styles.consultationGroupFields}>
+                    {group.fields.map((field) => (
+                      <div
+                        key={field.key}
+                        className={`${styles.field} ${field.key === 'consultDetails' ? styles.consultationLongField : ''}`}
+                      >
+                        <span className={styles.fieldLabel}>{field.label}</span>
+                        <div className={styles.fieldValue}>{field.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
 
@@ -513,13 +563,18 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
             </div>
 
             <div className={styles.consultationActions}>
-              <form className={styles.block} onSubmit={submitReply}>
-                <label className={styles.consultationLabel} htmlFor="consultation-reply">
-                  الرد على طلب الاستشارة
-                </label>
-                <p className={styles.consultationHint}>
-                  يُحفظ الرد ضمن سجل الطلب؛ لا يوجد تكامل إرسال خارجي للمواطن في النظام الحالي.
-                </p>
+              <form className={styles.consultationFormCard} onSubmit={submitReply}>
+                <div className={styles.consultationFormHeading}>
+                  <span className={styles.consultationStep}>١</span>
+                  <div>
+                    <label className={styles.consultationLabel} htmlFor="consultation-reply">
+                      الرد على طلب الاستشارة
+                    </label>
+                    <p className={styles.consultationHint}>
+                      يُحفظ الرد ضمن سجل الطلب، ويمكن مراجعته لاحقًا.
+                    </p>
+                  </div>
+                </div>
                 <textarea
                   id="consultation-reply"
                   className={styles.consultationTextarea}
@@ -527,18 +582,26 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
                   onChange={(event) => setReply(event.target.value)}
                   rows={4}
                   required
-                  placeholder="اكتب الرد الذي سيُحفظ على هذا الطلب..."
+                  placeholder="اكتب ردًا واضحًا ومفيدًا لمقدم الاستشارة..."
                 />
                 <button type="submit" className={styles.submit} disabled={!reply.trim() || Boolean(busy)}>
-                  حفظ الرد
+                  {busy === 'reply' ? 'جارٍ حفظ الرد...' : 'حفظ الرد'}
                 </button>
               </form>
 
-              <form className={styles.block} onSubmit={submitAppointment}>
-                <label className={styles.consultationLabel} htmlFor="consultation-appointment-type">
-                  تحديد موعد للاستشارة
-                </label>
-                <div className={styles.consultationForm}>
+              <form className={styles.consultationFormCard} onSubmit={submitAppointment}>
+                <div className={styles.consultationFormHeading}>
+                  <span className={styles.consultationStep}>٢</span>
+                  <div>
+                    <label className={styles.consultationLabel} htmlFor="consultation-appointment-type">
+                      تحديد موعد الاستشارة
+                    </label>
+                    <p className={styles.consultationHint}>اختر طريقة اللقاء وبيانات الموعد المطلوبة.</p>
+                  </div>
+                </div>
+
+                <div className={styles.consultationFormGroup}>
+                  <h4>طريقة الموعد</h4>
                   <select
                     id="consultation-appointment-type"
                     className={styles.select}
@@ -548,24 +611,44 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
                     <option value="zoom">جلسة عن بُعد (Zoom)</option>
                     <option value="office">زيارة داخل الشركة</option>
                   </select>
+                </div>
+
+                <div className={styles.consultationFormGroup}>
+                  <h4>التاريخ والوقت</h4>
                   <input
                     className={styles.input}
                     type="datetime-local"
                     value={appointment.dateTime}
+                    min={dateTimeInputValue(new Date().toISOString())}
                     onChange={(event) => setAppointment((current) => ({ ...current, dateTime: event.target.value }))}
                     required
                     aria-label="تاريخ ووقت الموعد"
                   />
-                  {appointment.type === 'zoom' ? (
+                </div>
+
+                {appointment.type === 'zoom' ? (
+                  <div className={styles.consultationFormGroup}>
+                    <h4>رابط اجتماع Zoom</h4>
+                    <p className={styles.consultationHint}>
+                      افتح صفحة جدولة Zoom لإنشاء الاجتماع، ثم أضف الرابط هنا. إنشاء الرابط تلقائيًا يتطلب ربط Zoom API.
+                    </p>
+                    <button type="button" className={styles.zoomScheduleButton} onClick={openZoomScheduler}>
+                      <ConsultationIcon name="external" />
+                      فتح جدولة Zoom
+                    </button>
                     <input
                       className={styles.input}
                       type="url"
                       value={appointment.zoomUrl}
                       onChange={(event) => setAppointment((current) => ({ ...current, zoomUrl: event.target.value }))}
-                      placeholder="رابط جلسة Zoom"
+                      placeholder="الصق رابط الاجتماع هنا بعد إنشائه"
                       required
+                      aria-label="رابط اجتماع Zoom"
                     />
-                  ) : (
+                  </div>
+                ) : (
+                  <div className={styles.consultationFormGroup}>
+                    <h4>مكان الزيارة</h4>
                     <input
                       className={styles.input}
                       type="text"
@@ -574,18 +657,22 @@ export default function ConsultationRequests({ requests, onUpdateRequest }) {
                       placeholder="مكان الزيارة داخل الشركة"
                       required
                     />
-                  )}
+                  </div>
+                )}
+
+                <div className={styles.consultationFormGroup}>
+                  <h4>ملاحظات الموعد <span>(اختياري)</span></h4>
                   <textarea
                     className={styles.consultationTextarea}
                     value={appointment.notes}
                     onChange={(event) => setAppointment((current) => ({ ...current, notes: event.target.value }))}
-                    rows={2}
-                    placeholder="ملاحظات إضافية (اختياري)"
+                    rows={3}
+                    placeholder="أضف أي تعليمات أو معلومات إضافية..."
                   />
-                  <button type="submit" className={styles.submit} disabled={!appointment.dateTime || Boolean(busy)}>
-                    حفظ الموعد
-                  </button>
                 </div>
+                <button type="submit" className={styles.submit} disabled={!appointment.dateTime || Boolean(busy)}>
+                  {busy === 'appointment' ? 'جارٍ حفظ الموعد...' : 'حفظ موعد الاستشارة'}
+                </button>
               </form>
             </div>
 

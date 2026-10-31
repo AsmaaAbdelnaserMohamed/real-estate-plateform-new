@@ -8,6 +8,8 @@ import "./Login.css";
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const vantaRef = useRef(null);
   const effectRef = useRef(null);
   const navigate = useNavigate();
@@ -20,14 +22,16 @@ export default function Login() {
         mouseControls: true,
         touchControls: true,
         gyroControls: false,
-        minHeight: 200.0,
-        minWidth: 200.0,
-        scale: 1.0,
-        scaleMobile: 1.0,
-        color: 0xd1c2d,
-        shininess: 33.0,
-        waveHeight: 21.0,
-        waveSpeed: 0.4,
+        minHeight: 200,
+        minWidth: 200,
+        scale: 1,
+        scaleMobile: 1,
+        color: 0x0d1c2d,
+        backgroundColor: 0x071725,
+        shininess: 28,
+        waveHeight: 12,
+        waveSpeed: 0.38,
+        zoom: 0.85,
       });
     }
 
@@ -40,7 +44,7 @@ export default function Login() {
 
   const handleLogin = () => {
     if (!username || !password) {
-      alert("يرجى إدخال اسم المستخدم وكلمة المرور");
+      setError("يرجى إدخال اسم المستخدم وكلمة المرور");
       return;
     }
 
@@ -51,26 +55,38 @@ export default function Login() {
       const destination = from ? `${from.pathname || "/"}${from.search || ""}${from.hash || ""}` : "/";
       navigate(destination, { replace: true });
     } else {
-      alert("اسم المستخدم أو كلمة المرور غير صحيحة");
+      setError("اسم المستخدم أو كلمة المرور غير صحيحة");
     }
   };
 
   return (
-    <div className="login-page" ref={vantaRef}>
-      <div className="login-container">
-        <div className="login-card">
+    <main className="login-page" ref={vantaRef}>
+      <section className="login-card" aria-labelledby="login-heading">
+        <div className="login-content">
+          <div
+            className="login-card-image"
+            role="img"
+            aria-label="منزل عصري ضمن منصة الخدمات العقارية"
+          >
+            <span>منصة العقارات والتمويل</span>
+          </div>
+
           <div className="logo-section">
             <h1 className="login-brand-heading">
               <Brand className="login-brand-lockup" />
             </h1>
 
-            <p className="subtitle">
-              المنصة الموحدة للخدمات العقارية في جمهورية مصر العربية
+            <h2 className="login-heading" id="login-heading">
+              أهلًا بعودتك
+            </h2>
+            <p className="login-intro">
+              سجّل الدخول لمتابعة خدماتك العقارية بكل سهولة.
             </p>
           </div>
 
           <form
             className="login-form"
+            aria-describedby={error ? "login-error" : undefined}
             onSubmit={(event) => {
               event.preventDefault();
               handleLogin();
@@ -82,22 +98,44 @@ export default function Login() {
                 type="text"
                 id="username"
                 placeholder="أدخل اسم المستخدم"
+                autoComplete="username"
+                aria-invalid={Boolean(error)}
                 value={username}
-                onChange={(event) => setUsername(event.target.value)}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  setError("");
+                }}
                 required
               />
             </div>
 
             <div className="input-group">
               <label htmlFor="password">كلمة المرور</label>
-              <input
-                type="password"
-                id="password"
-                placeholder="أدخل كلمة المرور"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
+              <div className="login-input-wrap">
+                <input
+                  className="login-password-input"
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  placeholder="أدخل كلمة المرور"
+                  autoComplete="current-password"
+                  aria-invalid={Boolean(error)}
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setError("");
+                  }}
+                  required
+                />
+                <button
+                  className="password-visibility"
+                  type="button"
+                  aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  {showPassword ? "إخفاء" : "إظهار"}
+                </button>
+              </div>
             </div>
 
             <div className="form-options">
@@ -106,12 +144,33 @@ export default function Login() {
               </a>
             </div>
 
+            {error && (
+              <p className="login-error" id="login-error" role="alert">
+                {error}
+              </p>
+            )}
+
             <button type="submit" className="login-btn">
               تسجيل الدخول
+              <svg
+                aria-hidden="true"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="M19 12H5m6-6-6 6 6 6"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </form>
 
-          <div className="register-section">
+          <div className="login-register">
             <p>
               ليس لديك حساب؟{" "}
               <Link className="register-link" to="/register">
@@ -120,7 +179,7 @@ export default function Login() {
             </p>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

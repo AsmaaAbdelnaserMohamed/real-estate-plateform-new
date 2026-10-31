@@ -656,3 +656,80 @@
     width: 100%;
   }
 }
+
+.eligibility-page--embedded {
+  min-height: 0;
+  background: transparent;
+}
+
+.eligibility-page--embedded .eligibility-shell {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.eligibility-page--embedded .eligibility-heading {
+  display: none;
+}
+
+.eligibility-registration-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin: 0 0 20px;
+  padding: 17px 18px;
+  border: 1px solid #cce5f1;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f1faff, #f7fbfd);
+}
+
+.eligibility-registration-note-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  background: #e0f2f8;
+  font-size: 17px;
+}
+
+.eligibility-registration-note strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #155271;
+  font-size: 13px;
+}
+
+.eligibility-registration-note p {
+  color: #4d667a;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.eligibility-page--embedded .eligibility-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 26px rgba(30, 64, 95, 0.06);
+}
+
+.eligibility-page--embedded .eligibility-progress {
+  padding: 18px 20px;
+}
+
+.eligibility-page--embedded .eligibility-card form {
+  padding: 26px;
+}
+
+@media (max-width: 760px) {
+  .eligibility-page--embedded .eligibility-shell {
+    width: 100%;
+  }
+
+  .eligibility-page--embedded .eligibility-card form {
+    padding: 22px 16px;
+  }
+
+  .eligibility-registration-note {
+    padding: 14px;
+  }
+}

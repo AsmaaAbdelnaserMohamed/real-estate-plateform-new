@@ -6,6 +6,7 @@ import Brand from "../Brand/Brand";
 
 const NAV_ITEMS = [
   { label: "الرئيسية", to: "/" },
+  { label: "الاشتراكات", to: "/subscriptions" },
   { label: "صفحة الطلبات", to: "/BankEmployeePage" },
   { label: "صفحة المراجع", to: "/Reviewerpage" },
   { label: "الخدمات", href: "#services-section" },
@@ -101,7 +102,7 @@ export default function Navbar() {
       : currentUser.username
     : "زائر";
 
-  const UserIcon = () => (
+  const userIcon = (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="8" r="3.4" />
       <path d="M5.5 20c.5-3.5 2.7-5.5 6.5-5.5s6 2 6.5 5.5" />
@@ -140,9 +141,14 @@ export default function Navbar() {
               {item.label}
             </NavLink>
           ) : (
-            <a key={item.label} className="nav-link" href={item.href}>
+            <Link
+              key={item.label}
+              className="nav-link"
+              to={`/${item.href}`}
+              onClick={close}
+            >
               {item.label}
-            </a>
+            </Link>
           )
         )}
         <div className="requests-menu" ref={requestsRef}>
@@ -178,7 +184,9 @@ export default function Navbar() {
             aria-haspopup="menu"
             onClick={() => setUserMenuOpen((open) => !open)}
           >
-            <span className="user-avatar"><UserIcon /></span>
+            <span className="user-avatar">
+              {currentUser?.profileImage ? <img src={currentUser.profileImage} alt="" /> : userIcon}
+            </span>
             <span className="user-info">
               <span className="user-name">{displayName}</span>
               <span className="user-role">{loggedIn ? "حسابك على المنصة" : "تصفح الخدمات"}</span>
@@ -189,6 +197,10 @@ export default function Navbar() {
             <div className="user-menu-dropdown" role="menu">
               {loggedIn ? (
                 <>
+                  <Link className="user-menu-item" to="/profile" onClick={close} role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" /><path d="M5.5 20c.5-3.5 2.7-5.5 6.5-5.5s6 2 6.5 5.5" /></svg>
+                    <span>الملف الشخصي</span>
+                  </Link>
                   <Link className="user-menu-item" to="/dashboard" onClick={close} role="menuitem">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>
                     <span>لوحة التحكم</span>
@@ -234,7 +246,9 @@ export default function Navbar() {
       >
         {/* User row at top of mobile menu */}
         <div className="mobile-user">
-          <span className="user-avatar"><UserIcon /></span>
+          <span className="user-avatar">
+            {currentUser?.profileImage ? <img src={currentUser.profileImage} alt="" /> : userIcon}
+          </span>
           <div className="user-info">
             <span className="user-name">{displayName}</span>
             <span className="user-role">
@@ -260,14 +274,14 @@ export default function Navbar() {
                 {item.label}
               </NavLink>
             ) : (
-              <a
+              <Link
                 key={item.label}
                 className="mobile-link"
-                href={item.href}
+                to={`/${item.href}`}
                 onClick={close}
               >
                 {item.label}
-              </a>
+              </Link>
             )
           )}
           <div className="mobile-requests-menu">
@@ -298,6 +312,13 @@ export default function Navbar() {
         <div className="mobile-auth">
           {loggedIn ? (
             <>
+              <Link
+                className="btn btn-ghost btn-full"
+                to="/profile"
+                onClick={close}
+              >
+                الملف الشخصي
+              </Link>
               <Link
                 className="btn btn-ghost btn-full"
                 to="/dashboard"

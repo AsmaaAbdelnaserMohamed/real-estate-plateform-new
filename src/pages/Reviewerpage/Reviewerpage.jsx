@@ -260,8 +260,8 @@ const TAB_CONFIG = {
       message: (it, decision) => {
         const shortName = it.name.split(' ').slice(0, 2).join(' ');
         return decision === 'eligible'
-          ? `عزيزي المتقدم ${shortName}، تم قبول طلب التأهيل المبدئي رقم ${it.id} بنجاح. برجاء التوجه لفرع البنك لسداد مقدم مدة الحجز خلال 5 أيام عمل.`
-          : `عزيزي المتقدم ${shortName}، نأسف لإبلاغك بأنه لم يتم قبول طلب التأهيل المبدئي رقم ${it.id} لعدم استيفاء شروط التمويل. يمكنك التواصل مع خدمة العملاء لمعرفة التفاصيل.`;
+          ? `عزيزي المتقدم ${shortName}، تم قبول طلب التأهيل المبدئي رقم ${it.id} بنجاح.برجاء الذهاب الي خدمة التمويل العقاري لأختيار الوحده المناسبة لك.`
+          : `عزيزي المتقدم ${shortName}، نأسف لإبلاغك بأنه لم يتم قبول طلب التأهيل المبدئي رقم ${it.id} لعدم استيفاء شروط التمويل وهو . يمكنك التواصل مع خدمة العملاء لمعرفة التفاصيل.`;
       },
       submitLabel: 'اعتماد وإرسال التوجيه للخطوة القادمة',
       successText: (it) => `تم اعتماد الرد وإرسال التوجيه للمتقدم (طلب #${it.id})`,
@@ -381,6 +381,45 @@ function DocModal({ doc, onClose }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function FeedbackModal({ notice, onClose }) {
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!notice) return null;
+  const isError = notice.type === 'error';
+
+  return (
+    <div className={styles.feedbackBackdrop} onClick={onClose} role="presentation">
+      <section
+        className={`${styles.feedbackModal} ${isError ? styles.feedbackModalError : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-feedback-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button type="button" className={styles.feedbackClose} onClick={onClose} aria-label="إغلاق الرسالة">
+          <Icon name="close" size={18} />
+        </button>
+        <span className={styles.feedbackIcon}>
+          <Icon name={isError ? 'alert' : 'checkCircle'} size={30} />
+        </span>
+        <h2 id="review-feedback-title">
+          {isError ? 'لم يكتمل الإجراء' : 'تم تنفيذ الإجراء بنجاح'}
+        </h2>
+        <p>{notice.text}</p>
+        <button type="button" className={styles.feedbackConfirm} onClick={onClose}>
+          حسنًا
+        </button>
+      </section>
     </div>
   );
 }
@@ -776,7 +815,7 @@ export default function ReviewerPage({ onSubmitDecision }) {
     return saved;
   });
   const [sending, setSending] = useState({ applicants: null, units: null });
-  const [toast, setToast] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [workflowRequests, setWorkflowRequests] = useState(() => getWorkflowRequests());
 
   useEffect(() => {
@@ -789,12 +828,6 @@ export default function ReviewerPage({ onSubmitDecision }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!toast) return undefined;
-    const t = setTimeout(() => setToast(null), 3800);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   const handleSubmit = async ({ tab: key, item, decision, message, successText }) => {
     setSending((s) => ({ ...s, [key]: item.id }));
     try {
@@ -805,9 +838,10 @@ export default function ReviewerPage({ onSubmitDecision }) {
         setWorkflowRequests(getWorkflowRequests());
       }
       setResults((r) => ({ ...r, [key]: { ...r[key], [item.id]: { status: decision } } }));
-      setToast({ type: 'ok', text: successText });
-    } catch {
-      setToast({ type: 'error', text: 'تعذّر إرسال الرسالة. حاول مرة أخرى.' });
+      setNotice({ type: 'success', text: successText });
+    } catch (error) {
+      console.error('Failed to submit reviewer decision', error);
+      setNotice({ type: 'error', text: 'تعذّر إرسال الرسالة. يُرجى المحاولة مرة أخرى.' });
     } finally {
       setSending((s) => ({ ...s, [key]: null }));
     }
@@ -861,6 +895,10 @@ export default function ReviewerPage({ onSubmitDecision }) {
     units: `${configs.units.items.length} مسجلة`,
     consultations: `${new Set(liveConsultations.map((request) => String(request.id))).size} مسجلة`,
   };
+  const totalRegisteredRequests =
+    configs.applicants.items.length
+    + configs.units.items.length
+    + new Set(liveConsultations.map((request) => String(request.id))).size;
 
   const handleConsultationUpdate = (id, changes) => {
     const updatedRequest = updateWorkflowRequest(id, changes);
@@ -872,6 +910,17 @@ export default function ReviewerPage({ onSubmitDecision }) {
     <>
       <Navbar />
       <div className={styles.page} dir="rtl">
+        <header className={styles.pageHeader}>
+          <div>
+            <span className={styles.pageEyebrow}>إدارة ومتابعة الطلبات</span>
+            <h1>لوحة مراجعة الطلبات</h1>
+            <p>راجع البيانات والمستندات، واتخذ القرار المناسب لكل طلب.</p>
+          </div>
+          <div className={styles.pageSummary}>
+            <span className={styles.summaryIcon}><Icon name="checkCircle" size={20} /></span>
+            <span><strong>{totalRegisteredRequests}</strong><small>طلبًا مسجلًا</small></span>
+          </div>
+        </header>
         <nav className={styles.tabs} role="tablist" aria-label="أقسام المراجعة">
           {TAB_ORDER.map((key) => {
             const cfg = configs[key];
@@ -901,6 +950,7 @@ export default function ReviewerPage({ onSubmitDecision }) {
               <ConsultationRequests
                 requests={liveConsultations}
                 onUpdateRequest={handleConsultationUpdate}
+                onFeedback={(type, text) => setNotice({ type, text })}
               />
             ) : (
               <ReviewSection
@@ -913,13 +963,8 @@ export default function ReviewerPage({ onSubmitDecision }) {
           </div>
         ))}
 
-        {toast && (
-          <div className={`${styles.toast} ${toast.type === 'error' ? styles.toastError : ''}`} role="status">
-            <Icon name={toast.type === 'error' ? 'alert' : 'checkCircle'} size={16} />
-            {toast.text}
-          </div>
-        )}
       </div>
+      <FeedbackModal notice={notice} onClose={() => setNotice(null)} />
       <Footer />
     </>
   );

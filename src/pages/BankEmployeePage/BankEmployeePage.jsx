@@ -24,12 +24,6 @@ const BRANCHES = [
   { value: "alex", label: "فرع الإسكندرية" },
 ];
 
-const STATS = [
-  { key: "new", label: "الطلبات الجديدة", value: 3, tone: "blue" },
-  { key: "visit", label: "بانتظار المعاينة", value: 1, tone: "orange" },
-  { key: "approved", label: "معتمدة هذا الشهر", value: 18, tone: "green" },
-];
-
 const DEFAULT_FILTERS = {
   query: "",
   status: "all",
@@ -100,6 +94,18 @@ export default function BankEmployeePage() {
     return counts;
   }, [requests]);
 
+  const stats = useMemo(
+    () => [
+      { key: "total", label: "إجمالي الطلبات المسجلة", value: requests.length, tone: "navy" },
+      { key: "new", label: "طلبات جديدة", value: statusCounts.new || 0, tone: "blue" },
+      { key: "review", label: "قيد المراجعة", value: statusCounts.review || 0, tone: "purple" },
+      { key: "visit", label: "بانتظار المعاينة", value: statusCounts.visit || 0, tone: "orange" },
+      { key: "approved", label: "طلبات معتمدة", value: statusCounts.approved || 0, tone: "green" },
+      { key: "rejected", label: "طلبات مرفوضة", value: statusCounts.rejected || 0, tone: "red" },
+    ],
+    [requests.length, statusCounts],
+  );
+
   const filtered = useMemo(
     () =>
       requests.filter((request) => {
@@ -133,6 +139,28 @@ export default function BankEmployeePage() {
   return (
     <div className={styles.page} dir="rtl">
       <Navbar />
+      <header className={styles.pageHeader}>
+        <div>
+          <span className={styles.pageEyebrow}>إدارة التمويل العقاري</span>
+          <h1>طلبات التمويل</h1>
+          <p>تابع الطلبات الواردة، راجع حالتها، وافتح التفاصيل لاتخاذ الإجراء المناسب.</p>
+        </div>
+        <div className={styles.headerTotal}>
+          <span>إجمالي الطلبات</span>
+          <strong>{requests.length}</strong>
+        </div>
+      </header>
+
+      <section className={styles.stats} aria-label="ملخص حالات الطلبات">
+        {stats.map((stat) => (
+          <article key={stat.key} className={`${styles.card} ${styles.stat} ${styles[`stat_${stat.tone}`]}`}>
+            <span className={styles.statLabel}>{stat.label}</span>
+            <strong className={styles.statValue}>{stat.value}</strong>
+            <span className={styles.statCaption}>طلب مسجل</span>
+          </article>
+        ))}
+      </section>
+
       <section
         className={`${styles.card} ${styles.filterBar}`}
         aria-label="البحث والتصفية"
@@ -141,7 +169,10 @@ export default function BankEmployeePage() {
           <span className={styles.filterIcon}>
             <Icon name="sliders" size={16} />
           </span>
-          <div></div>
+          <div>
+            <strong className={styles.filterTitleAr}>البحث والتصفية</strong>
+            <span className={styles.filterSubtitle}>استخدم المعايير للوصول إلى الطلب المطلوب</span>
+          </div>
         </div>
 
         <label className={styles.field}>
@@ -154,6 +185,8 @@ export default function BankEmployeePage() {
               value={form.query}
               onChange={setField("query")}
               onKeyDown={(event) => event.key === "Enter" && applyFilters()}
+              placeholder="أدخل رقم الطلب أو الكود"
+              aria-label="البحث برقم الطلب أو كود الوحدة أو العميل"
               inputMode="numeric"
             />
             <span className={styles.searchIcon}>
@@ -238,7 +271,7 @@ export default function BankEmployeePage() {
             <div className={styles.listHead}>
               <h2 className={styles.listTitle}>قائمة طلبات التمويل</h2>
               <span className={styles.countBadge}>
-                {filtered.length} طلبات مسجلة
+                {filtered.length} من {requests.length} طلب
               </span>
             </div>
 
@@ -247,10 +280,11 @@ export default function BankEmployeePage() {
                 <thead>
                   <tr>
                     <th>رقم الطلب</th>
-                    <th>كود الوحدة</th>
-                    <th>كود مقدم الطلب</th>
-                    <th>تاريخ الاستقبال</th>
-                    <th>الإجراء والتفاصيل</th>
+                    <th>رقم الوحدة</th>
+                    <th>رقم مقدم الطلب</th>
+                    <th>تاريخ تسجيل الطلب</th>
+                    <th>حالة الطلب</th>
+                    <th>التفاصيل</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -268,6 +302,11 @@ export default function BankEmployeePage() {
                         {formatDate(request.date)}
                       </td>
                       <td>
+                        <span className={`${styles.statusBadge} ${styles[`status_${request.status}`] || ""}`}>
+                          {STATUS_LABELS[request.status] || "غير محددة"}
+                        </span>
+                      </td>
+                      <td>
                         <button
                           type="button"
                           className={styles.openBtn}
@@ -276,7 +315,7 @@ export default function BankEmployeePage() {
                           }
                           aria-label={`فتح تفاصيل الطلب رقم ${request.id}`}
                         >
-                          فتح
+                          عرض الطلب
                           <Icon name="chevron" size={11} />
                         </button>
                       </td>
@@ -292,18 +331,6 @@ export default function BankEmployeePage() {
             </div>
           </section>
 
-          <div className={styles.stats}>
-            {STATS.map((stat) => (
-              <div key={stat.key} className={`${styles.card} ${styles.stat}`}>
-                <div className={styles.statLabel}>{stat.label}</div>
-                <div
-                  className={`${styles.statValue} ${styles[`tone_${stat.tone}`]}`}
-                >
-                  {stat.value}
-                </div>
-              </div>
-            ))}
-          </div>
         </aside>
       </div>
       <Footer />

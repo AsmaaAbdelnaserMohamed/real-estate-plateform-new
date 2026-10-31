@@ -11,6 +11,8 @@ import ReviewerPage from "./pages/Reviewerpage/Reviewerpage.jsx";
 import EligibilityRequest from "./pages/EligibilityRequest/EligibilityRequest.jsx";
 import AddUnitRequest from "./pages/AddUnitRequest/AddUnitRequest.jsx";
 import ValuationService from "./pages/ValuationService/ValuationService.jsx";
+import SubscriptionManagement from "./pages/Subscriptions/SubscriptionManagement.jsx";
+import UserProfile from "./pages/Profile/UserProfile.jsx";
 
 function App() {
   return (
@@ -51,10 +53,19 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserProfile />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/register" element={<Register />} />
         <Route path="/eligibility-request" element={<EligibilityRequest />} />
         <Route path="/add-unit" element={<AddUnitRequest />} />
         <Route path="/valuation" element={<ValuationService />} />
+        <Route path="/subscriptions" element={<SubscriptionManagement />} />
       </Routes>
     </BrowserRouter>
   );

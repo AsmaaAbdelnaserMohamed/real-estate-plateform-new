@@ -32,6 +32,24 @@ export function saveUser(user) {
   return user;
 }
 
+export function updateUser(user, originalUsername) {
+  const users = getUsers();
+  const existingIndex = users.findIndex((savedUser) =>
+    user.id
+      ? savedUser.id === user.id
+      : normalizeUsername(savedUser.username) === normalizeUsername(originalUsername)
+  );
+
+  if (existingIndex >= 0) {
+    users[existingIndex] = user;
+  } else {
+    users.push(user);
+  }
+
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  return user;
+}
+
 export function findUserByUsername(username) {
   const users = getUsers();
   const normalizedUsername = normalizeUsername(username);

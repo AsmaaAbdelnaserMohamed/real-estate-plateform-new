@@ -11,11 +11,13 @@ import {
 import Map from "./Map.jsx";
 import Leads from "./Leads.jsx";
 import Mortgage from "./Mortgage.jsx"; // ✅ was imported but missing before
+import SubscriptionManagement from "../Subscriptions/SubscriptionManagement.jsx";
 
 const PAGE_LABELS = {
   dashboard: "لوحة التحكم",
   units: "الوحدات العقارية",
   leads: "العملاء",
+  subscriptions: "الاشتراك والباقات",
   mortgage: "طلبات التمويل",
   map: "الخريطة",
 };
@@ -158,6 +160,9 @@ export default function Dashbord() {
         return (
           <Leads clients={clients} /> // ✅ now passes clients as prop
         );
+
+      case "subscriptions":
+        return <SubscriptionManagement embedded />;
 
       case "mortgage":
         return (

@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearAuthenticated } from "../../utils/auth";
-import { saveUser, findUserByUsername, findUserByEmail } from "../../utils/localStorage";
+import {
+  saveUser,
+  findUserByUsername,
+  findUserByEmail,
+} from "../../utils/localStorage";
+import {
+  fileMetadata,
+  saveWorkflowFiles,
+  saveWorkflowRequest,
+} from "../../utils/requestWorkflow";
+import EligibilityRequest from "../EligibilityRequest/EligibilityRequest";
+import registerHero from "../../assets/Gemini_Generated_Image_16whiz16whiz16wh.png";
 import "./Register.css";
 
 // ─── Validation Functions ─────────────────────────────────────────────────────
@@ -293,30 +304,52 @@ const TYPE_CONFIG = {
     icon: "👤",
     title: "بيانات الأفراد",
     sub: "أدخل بياناتك الشخصية",
+    description: "للباحثين عن منزلهم القادم",
     fields: AFRAD_FIELDS,
   },
   شركات: {
     icon: "🏢",
     title: "بيانات الشركة",
     sub: "أدخل بيانات شركتك الرسمية",
+    description: "لشركات التطوير والوساطة",
     fields: SHARIKAT_FIELDS,
   },
   بنوك: {
     icon: "🏦",
     title: "بيانات البنك",
     sub: "أدخل بيانات البنك الرسمية",
+    description: "للجهات والمؤسسات المصرفية",
     fields: BUNUK_FIELDS,
   },
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StepDots({ step }) {
+function StepDots({ step, individual }) {
+  const steps = individual
+    ? ["نوع الحساب", "البيانات", "صفة المستخدم", "التأكيد"]
+    : ["نوع الحساب", "البيانات", "التأكيد"];
+
   return (
-    <div className="step-dots">
-      {[1, 2, 3].map((n) => (
-        <div key={n} className={`step-dot ${step >= n ? "active" : ""}`} />
-      ))}
+    <div
+      className="step-dots"
+      role="list"
+      aria-label={`الخطوة ${step} من ${steps.length}`}
+    >
+      {steps.map((label, index) => {
+        const number = index + 1;
+        return (
+          <div
+            key={label}
+            className={`step-item ${step === number ? "current" : ""} ${step > number ? "complete" : ""}`}
+            role="listitem"
+            aria-current={step === number ? "step" : undefined}
+          >
+            <span className="step-dot">{step > number ? "✓" : number}</span>
+            <span className="step-name">{label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -363,7 +396,7 @@ function FieldsSection({ sections, formData, onChange, errors }) {
       {Object.entries(sections).map(([key, section], si) => (
         <div key={key}>
           {si > 0 && <hr className="form-divider" />}
-          <p className="section-title">{section.title}</p>
+          <p className="regester-title">{section.title}</p>
           {section.rows.map((row, ri) => {
             if (row.length === 1 || row[0].full) {
               return (
@@ -403,29 +436,39 @@ export default function Register() {
   const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
+  const [pendingUser, setPendingUser] = useState(null);
+  const [accountRole, setAccountRole] = useState(null);
+  const [registrationError, setRegistrationError] = useState("");
   const vantaRef = useRef(null);
-  const effectRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (window.VANTA) {
-      effectRef.current = window.VANTA.WAVES({
-        el: vantaRef.current,
-        mouseControls: true,
-        touchControls: true,
-        gyroControls: false,
-        minHeight: 200.0,
-        minWidth: 200.0,
-        scale: 1.0,
-        scaleMobile: 1.0,
-        color: 0x2a40,
-        shininess: 33.0,
-        waveHeight: 21.0,
-        waveSpeed: 0.4,
-      });
-    }
+    const container = vantaRef.current;
+    if (!window.VANTA || !container) return undefined;
+
+    const effect = window.VANTA.WAVES({
+      el: container,
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.0,
+      minWidth: 200.0,
+      scale: 1.0,
+      scaleMobile: 1.0,
+      color: 0xd1c2d,
+      backgroundColor: 0x071725,
+      shininess: 28.0,
+      waveHeight: 12.0,
+      waveSpeed: 0.38,
+      zoom: 0.85,
+    });
+
+    const resizeObserver = new ResizeObserver(() => effect.resize());
+    resizeObserver.observe(container);
+
     return () => {
-      if (effectRef.current) effectRef.current.destroy();
+      resizeObserver.disconnect();
+      effect.destroy();
     };
   }, []);
   // const handleBackToLogin = () => {
@@ -440,6 +483,9 @@ export default function Register() {
     setSelectedType(type);
     setFormData({});
     setErrors({});
+    setPendingUser(null);
+    setAccountRole(null);
+    setRegistrationError("");
   };
 
   const handleNext = () => {
@@ -452,7 +498,6 @@ export default function Register() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Form submitted", { selectedType, formData, errors });
 
     const newErrors = {};
 
@@ -461,9 +506,16 @@ export default function Register() {
 
     // Validation based on account type
     if (normalizedType === "أفراد") {
-      const { firstName, lastName, nationalId, phone, email, username, password, confirmPassword } = formData;
-
-      console.log("Validating individual form:", { firstName, lastName, nationalId, phone, email, username, password, confirmPassword });
+      const {
+        firstName,
+        lastName,
+        nationalId,
+        phone,
+        email,
+        username,
+        password,
+        confirmPassword,
+      } = formData;
 
       if (!firstName) newErrors.firstName = "يرجى إدخال الاسم الأول";
       if (!lastName) newErrors.lastName = "يرجى إدخال الاسم الأخير";
@@ -495,7 +547,6 @@ export default function Register() {
       }
 
       if (Object.keys(newErrors).length > 0) {
-        console.log("Validation errors:", newErrors);
         setErrors(newErrors);
         return;
       }
@@ -528,12 +579,22 @@ export default function Register() {
         createdAt: new Date().toISOString(),
       };
 
-      saveUser(user);
-      clearAuthenticated();
+      setPendingUser(user);
       setStep(3);
-
+      return;
     } else if (normalizedType === "شركات") {
-      const { companyName, commercialReg, taxNumber, activity, companyPhone, companyEmail, managerName, jobTitle, password, confirmPassword } = formData;
+      const {
+        companyName,
+        commercialReg,
+        taxNumber,
+        activity,
+        companyPhone,
+        companyEmail,
+        managerName,
+        jobTitle,
+        password,
+        confirmPassword,
+      } = formData;
 
       if (!companyName) newErrors.companyName = "يرجى إدخال اسم الشركة";
       if (!commercialReg) newErrors.commercialReg = "يرجى إدخال السجل التجاري";
@@ -542,7 +603,8 @@ export default function Register() {
       if (!companyPhone) {
         newErrors.companyPhone = "يرجى إدخال هاتف الشركة";
       } else if (!validatePhone(companyPhone)) {
-        newErrors.companyPhone = "رقم الهاتف يجب أن يبدأ بـ 01 ويتكون من 11 رقم";
+        newErrors.companyPhone =
+          "رقم الهاتف يجب أن يبدأ بـ 01 ويتكون من 11 رقم";
       }
       if (!companyEmail) {
         newErrors.companyEmail = "يرجى إدخال البريد الرسمي";
@@ -598,14 +660,25 @@ export default function Register() {
       saveUser(user);
       clearAuthenticated();
       setStep(3);
-
     } else if (normalizedType === "بنوك") {
-      const { bankName, bankCode, bankType, cbeNumber, bankPhone, bankEmail, managerName, role, password, confirmPassword } = formData;
+      const {
+        bankName,
+        bankCode,
+        bankType,
+        cbeNumber,
+        bankPhone,
+        bankEmail,
+        managerName,
+        role,
+        password,
+        confirmPassword,
+      } = formData;
 
       if (!bankName) newErrors.bankName = "يرجى إدخال اسم البنك";
       if (!bankCode) newErrors.bankCode = "يرجى إدخال كود البنك";
       if (!bankType) newErrors.bankType = "يرجى اختيار نوع البنك";
-      if (!cbeNumber) newErrors.cbeNumber = "يرجى إدخال رقم ترخيص البنك المركزي";
+      if (!cbeNumber)
+        newErrors.cbeNumber = "يرجى إدخال رقم ترخيص البنك المركزي";
       if (!bankPhone) {
         newErrors.bankPhone = "يرجى إدخال هاتف البنك";
       } else if (!validatePhone(bankPhone)) {
@@ -669,15 +742,78 @@ export default function Register() {
   };
 
   const handleBackToType = () => {
+    setPendingUser(null);
+    setAccountRole(null);
     setStep(1);
   };
 
   const config = selectedType ? TYPE_CONFIG[selectedType] : null;
+  const isIndividual = selectedType === "افراد" || selectedType === "أفراد";
+
+  const completeSellerRegistration = () => {
+    if (!pendingUser) return;
+    try {
+      saveUser({ ...pendingUser, accountRole: "seller" });
+      clearAuthenticated();
+      setRegistrationError("");
+      setStep(4);
+    } catch {
+      setRegistrationError("تعذر حفظ الحساب. يرجى المحاولة مرة أخرى.");
+    }
+  };
+
+  const completeBuyerRegistration = async ({ data, documents, requestNumber }) => {
+    if (!pendingUser) return;
+
+    try {
+      await saveWorkflowFiles(requestNumber, [
+        { key: "salaryStatement", file: documents.salaryStatement },
+        { key: "identityCard", file: documents.identityCard },
+      ]);
+      saveWorkflowRequest({
+        id: requestNumber,
+        kind: "eligibility",
+        requestNumber,
+        createdAt: new Date().toISOString(),
+        status: "review",
+        data: { ...data, username: pendingUser.username },
+        documents: [
+          fileMetadata(documents.salaryStatement, "مفردات المرتب"),
+          fileMetadata(documents.identityCard, "صورة بطاقة الهوية"),
+        ].filter(Boolean),
+      });
+      saveUser({
+        ...pendingUser,
+        accountRole: "buyer",
+        eligibilityProfile: data,
+        eligibilityRequestId: requestNumber,
+      });
+      clearAuthenticated();
+      setRegistrationError("");
+      setStep(4);
+    } catch {
+      setRegistrationError(
+        "تعذر حفظ طلب التحقق من الأهلية. بياناتك ما زالت في النموذج؛ يرجى المحاولة مرة أخرى.",
+      );
+    }
+  };
+
   return (
-    <div className="register-page" ref={vantaRef}>
+    <div className="register-page">
+      <div className="register-background" ref={vantaRef} aria-hidden="true" />
       <div className="register-container">
         <div className="register-card">
-          <StepDots step={step} />
+          <div className="register-visual">
+            <img src={registerHero} alt="" />
+            <div className="register-visual-shade" />
+            <div className="register-visual-copy">
+              <span>منصتك العقارية الموثوقة</span>
+              <strong>خطوتك الأولى نحو عقار أفضل</strong>
+              <p>فرص واعدة، وتجربة عقارية تبدأ بثقة.</p>
+            </div>
+          </div>
+
+          <StepDots step={step} individual={isIndividual} />
 
           {/* ── Step 1: Choose type ── */}
           {step === 1 && (
@@ -693,10 +829,13 @@ export default function Register() {
                   <button
                     key={type}
                     className={`type-btn ${selectedType === type ? "active" : ""}`}
+                    type="button"
+                    aria-pressed={selectedType === type}
                     onClick={() => handleTypeSelect(type)}
                   >
                     <span className="type-icon">{cfg.icon}</span>
-                    {type}
+                    <span className="type-name">{type}</span>
+                    <span className="type-description">{cfg.description}</span>
                   </button>
                 ))}
               </div>
@@ -751,8 +890,149 @@ export default function Register() {
             </>
           )}
 
-          {/* ── Step 3: Success ── */}
-          {step === 3 && (
+          {step === 3 && isIndividual && pendingUser && (
+            <section className="account-role-step">
+              <div className="step-header">
+                <h2>كيف ستستخدم المنصة؟</h2>
+                <p>اختر الصفة المناسبة لتجهيز الخدمات والبيانات المطلوبة لك.</p>
+              </div>
+
+              <div className="account-role-options">
+                <button
+                  type="button"
+                  className={`account-role-option${accountRole === "buyer" ? " active" : ""}`}
+                  aria-pressed={accountRole === "buyer"}
+                  onClick={() => {
+                    setAccountRole("buyer");
+                    setRegistrationError("");
+                  }}
+                >
+                  <span className="account-role-icon" aria-hidden="true">⌕</span>
+                  <strong>مشتري</strong>
+                  <small>أبحث عن وحدة وأرغب في معرفة قدرتي على التمويل.</small>
+                  <span className="account-role-select">اختيار المشتري</span>
+                </button>
+                <button
+                  type="button"
+                  className={`account-role-option${accountRole === "seller" ? " active" : ""}`}
+                  aria-pressed={accountRole === "seller"}
+                  onClick={() => {
+                    setAccountRole("seller");
+                    setRegistrationError("");
+                  }}
+                >
+                  <span className="account-role-icon" aria-hidden="true">⌂</span>
+                  <strong>بائع / مالك</strong>
+                  <small>أمتلك وحدة وأرغب في عرضها على المنصة.</small>
+                  <span className="account-role-select">اختيار البائع</span>
+                </button>
+              </div>
+
+              {accountRole === "buyer" && (
+                <div className="registration-followup">
+                  <div className="registration-followup-heading">
+                    <div>
+                      <span>الخطوة التالية</span>
+                      <h3>التحقق من أهلية التمويل العقاري</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="role-change-button"
+                      onClick={() => {
+                        setAccountRole(null);
+                        setRegistrationError("");
+                      }}
+                    >
+                      تغيير الاختيار
+                    </button>
+                  </div>
+                  {registrationError && (
+                    <p className="registration-error" role="alert">
+                      {registrationError}
+                    </p>
+                  )}
+                  <EligibilityRequest
+                    registrationMode
+                    initialProfile={formData}
+                    onComplete={completeBuyerRegistration}
+                  />
+                </div>
+              )}
+
+              {accountRole === "seller" && (
+                <div className="seller-confirmation">
+                  <div className="registration-followup-heading">
+                    <div>
+                      <span>مراجعة بيانات المالك</span>
+                      <h3>تأكد من بياناتك قبل إنشاء الحساب</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="role-change-button"
+                      onClick={() => setAccountRole(null)}
+                    >
+                      تغيير الاختيار
+                    </button>
+                  </div>
+                  <div className="seller-owner-details">
+                    <div><span>الاسم</span><strong>{pendingUser.firstName} {pendingUser.lastName}</strong></div>
+                    <div><span>الرقم القومي</span><strong>{pendingUser.nationalId}</strong></div>
+                    <div><span>رقم الهاتف</span><strong>{pendingUser.phone}</strong></div>
+                    <div><span>البريد الإلكتروني</span><strong>{pendingUser.email}</strong></div>
+                  </div>
+                  <p className="seller-next-step">
+                    بعد إنشاء الحساب، يمكنك تسجيل وحدتك وإضافة تفاصيلها ومستندات الملكية من خدمة «إضافة وحدة».
+                  </p>
+                  {registrationError && <p className="registration-error" role="alert">{registrationError}</p>}
+                  <button
+                    type="button"
+                    className="register-btn"
+                    onClick={completeSellerRegistration}
+                  >
+                    تأكيد البيانات وإنشاء الحساب ←
+                  </button>
+                </div>
+              )}
+
+              <div className="back-section">
+                <button
+                  type="button"
+                  className="back-link"
+                  onClick={() => {
+                    setPendingUser(null);
+                    setAccountRole(null);
+                    setRegistrationError("");
+                    setStep(2);
+                  }}
+                >
+                  → العودة لتعديل بيانات الحساب
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 4 && isIndividual && (
+            <div className="success-state">
+              <div className="success-icon">✓</div>
+              <h2>تم إنشاء حسابك بنجاح!</h2>
+              <p>
+                {accountRole === "buyer"
+                  ? "تم استلام بيانات التحقق من أهلية التمويل. يمكنك الآن تسجيل الدخول ومتابعة طلبك."
+                  : "أصبحت جاهزًا لتسجيل الدخول وإضافة وحدتك العقارية إلى المنصة."}
+              </p>
+
+              <button
+                type="button"
+                className="register-btn"
+                onClick={() => navigate("/login")}
+              >
+                الذهاب لتسجيل الدخول
+              </button>
+            </div>
+          )}
+
+          {/* ── Step 3: Success for companies and banks ── */}
+          {step === 3 && !isIndividual && (
             <div className="success-state">
               <div className="success-icon">✓</div>
               <h2>تم التسجيل بنجاح!</h2>

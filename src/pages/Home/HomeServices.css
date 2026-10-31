@@ -4,6 +4,71 @@
   background: #f4f8fb;
   min-height: 680px;
 }
+.service-frame-panel:fullscreen,
+.service-frame-panel:-webkit-full-screen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: 0;
+  background: #f4f8fb;
+}
+.service-frame-panel:fullscreen .service-frame-toolbar,
+.service-frame-panel:-webkit-full-screen .service-frame-toolbar {
+  flex: 0 0 auto;
+}
+.service-frame-panel:fullscreen .service-frame-content,
+.service-frame-panel:-webkit-full-screen .service-frame-content {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  overflow: auto;
+}
+.service-frame-panel:fullscreen .valuation-page--embedded,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.service-frame-panel:fullscreen .valuation-page--embedded .valuation-shell,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 18px 22px;
+}
+.service-frame-panel:fullscreen .valuation-page--embedded .valuation-header,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-header {
+  flex: 0 0 auto;
+}
+.service-frame-panel:fullscreen .valuation-page--embedded .valuation-workspace,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.service-frame-panel:fullscreen .valuation-page--embedded .valuation-panel,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-panel {
+  min-height: 0;
+  overflow-y: auto;
+}
+.service-frame-panel:fullscreen .valuation-page--embedded .valuation-map-wrap,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-map-wrap,
+.service-frame-panel:fullscreen .valuation-page--embedded .valuation-map,
+.service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-map {
+  height: 100%;
+  min-height: 0;
+}
 :fullscreen .property-card-overlay,
 :-webkit-full-screen .property-card-overlay {
   position: fixed;
@@ -115,5 +180,18 @@
   }
   .service-frame-content--dashboard .app-layout {
     min-height: 560px;
+  }
+  .service-frame-panel:fullscreen .valuation-page--embedded .valuation-workspace,
+  .service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+  }
+  .service-frame-panel:fullscreen .valuation-page--embedded .valuation-panel,
+  .service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-panel {
+    max-height: 38vh;
+  }
+  .service-frame-panel:fullscreen .valuation-page--embedded .valuation-map-wrap,
+  .service-frame-panel:-webkit-full-screen .valuation-page--embedded .valuation-map-wrap {
+    min-height: 0;
   }
 }
