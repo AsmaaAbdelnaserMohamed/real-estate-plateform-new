@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./PropertyCard.css";
 import { saveWorkflowRequest } from "../../../utils/requestWorkflow";
+import VirtualTourViewer from "../../VirtualTour/VirtualTourViewer";
+import { virtualTourScenes as demoVirtualTourScenes } from "../../../data/virtualTourScenes";
 
 const TOTAL_STEPS = 4;
-const DEMO_PANORAMA_SOURCE = "https://threejs.org/manual/examples/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg";
 const PERIOD_OPTIONS = [
   { label: "5 سنوات", years: 5 },
   { label: "10 سنوات", years: 10 },
@@ -77,115 +77,6 @@ function getMonthlyPayment(loanAmount, years, annualRate = 0.125) {
   );
 }
 
-function PanoramaViewer({ source, title, isDemo = false }) {
-  const mountRef = useRef(null);
-  const [status, setStatus] = useState(source ? "loading" : "empty");
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount || !source) return undefined;
-
-    setStatus("loading");
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1100);
-    camera.position.set(0, 0, 0.1);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mount.clientWidth || 640, mount.clientHeight || 420);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.domElement.className = "panorama-canvas";
-    renderer.domElement.setAttribute("aria-label", `جولة 360 داخل ${title}`);
-    mount.appendChild(renderer.domElement);
-
-    const geometry = new THREE.SphereGeometry(100, 64, 40);
-    geometry.scale(-1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x17263a });
-    const sphere = new THREE.Mesh(geometry, material);
-    scene.add(sphere);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.minDistance = 0.1;
-    controls.maxDistance = 0.1;
-    controls.rotateSpeed = -0.3;
-    controls.zoomSpeed = 0.6;
-
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.setCrossOrigin("anonymous");
-    const texture = textureLoader.load(
-      source,
-      (loadedTexture) => {
-        loadedTexture.colorSpace = THREE.SRGBColorSpace;
-        material.map = loadedTexture;
-        material.color.set(0xffffff);
-        material.needsUpdate = true;
-        setStatus("ready");
-      },
-      undefined,
-      () => setStatus("error")
-    );
-
-    const resizeObserver = new ResizeObserver(() => {
-      const width = mount.clientWidth;
-      const height = mount.clientHeight;
-      if (!width || !height) return;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height, false);
-    });
-    resizeObserver.observe(mount);
-
-    let frameId;
-    const render = () => {
-      controls.update();
-      renderer.render(scene, camera);
-      frameId = requestAnimationFrame(render);
-    };
-    render();
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      resizeObserver.disconnect();
-      controls.dispose();
-      texture.dispose();
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
-    };
-  }, [source, title]);
-
-  return (
-    <div
-      className="panorama-viewer"
-      ref={mountRef}
-      onPointerDown={(event) => event.stopPropagation()}
-      onPointerMove={(event) => event.stopPropagation()}
-      onPointerUp={(event) => event.stopPropagation()}
-      onTouchStart={(event) => event.stopPropagation()}
-      onWheel={(event) => event.stopPropagation()}
-    >
-      {status === "loading" && <div className="panorama-status">جاري تحميل الجولة 360...</div>}
-      {status === "error" && <div className="panorama-status panorama-status-error">تعذر تحميل صورة الجولة 360</div>}
-      {status === "empty" && (
-        <div className="panorama-empty">
-          <span className="panorama-empty-icon">360°</span>
-          <strong>لا توجد جولة 360 مرفقة بهذه الوحدة</strong>
-          <small>أضف رابط الصورة البانورامية في بيانات الوحدة لتفعيل التجول.</small>
-        </div>
-      )}
-      {status === "ready" && (
-        <>
-          {isDemo && <span className="panorama-demo-label">مشهد تجريبي توضيحي</span>}
-          <span className="panorama-hint">اسحب للمشاهدة · استخدم العجلة للتكبير</span>
-        </>
-      )}
-    </div>
-  );
-}
-
 function PropertyCard({ property, onClose }) {
   const images = property.images?.length ? property.images : [];
   const title = property.title || property.name || "وحدة سكنية مميزة";
@@ -197,8 +88,12 @@ function PropertyCard({ property, onClose }) {
   const hasVideo = Boolean(property.video);
   const realPanoramaSource = property.panorama360 || property.panorama || property.images360?.[0]
     || property.unitData?.panorama360 || property.unitData?.panorama || property.unitData?.images360?.[0];
-  const panoramaSource = realPanoramaSource || DEMO_PANORAMA_SOURCE;
-  const isDemoPanorama = !realPanoramaSource;
+  const tourScenes = useMemo(
+    () => realPanoramaSource
+      ? [{ ...demoVirtualTourScenes[0], panorama: realPanoramaSource, hotspots: [] }]
+      : demoVirtualTourScenes,
+    [realPanoramaSource],
+  );
   const virtualTourSource = property.virtualTour || property.tour360
     || property.unitData?.virtualTour || property.unitData?.tour360;
 
@@ -833,30 +728,33 @@ function PropertyCard({ property, onClose }) {
         )}
 
         {showPanorama && (
-          <div className="panorama-modal" role="dialog" aria-modal="true" aria-label={`جولة 360 داخل ${title}`}>
-            <div className="panorama-modal-card">
-              <div className="panorama-modal-header">
-                <div>
-                  <strong>جولة 360 داخل الوحدة</strong>
-                  <small>{title}</small>
+          createPortal(
+            <div className="panorama-modal" role="dialog" aria-modal="true" aria-label={`جولة 360 داخل ${title}`}>
+              <div className="panorama-modal-card">
+                <div className="panorama-modal-header">
+                  <div>
+                    <strong>جولة 360 داخل الوحدة</strong>
+                    <small>{title}</small>
+                  </div>
+                  <button type="button" className="close-video-btn" onClick={() => setShowPanorama(false)} aria-label="إغلاق الجولة 360">
+                    ×
+                  </button>
                 </div>
-                <button type="button" className="close-video-btn" onClick={() => setShowPanorama(false)} aria-label="إغلاق الجولة 360">
-                  ×
-                </button>
+                {virtualTourSource ? (
+                  <iframe
+                    className="panorama-iframe"
+                    src={virtualTourSource}
+                    title={`جولة 360 داخل ${title}`}
+                    allow="fullscreen; accelerometer; gyroscope"
+                    allowFullScreen
+                  />
+                ) : (
+                  <VirtualTourViewer scenes={tourScenes} title={title} />
+                )}
               </div>
-              {virtualTourSource ? (
-                <iframe
-                  className="panorama-iframe"
-                  src={virtualTourSource}
-                  title={`جولة 360 داخل ${title}`}
-                  allow="fullscreen; accelerometer; gyroscope"
-                  allowFullScreen
-                />
-              ) : (
-                <PanoramaViewer source={panoramaSource} title={title} isDemo={isDemoPanorama} />
-              )}
-            </div>
-          </div>
+            </div>,
+            document.body,
+          )
         )}
       </div>
     </div>
