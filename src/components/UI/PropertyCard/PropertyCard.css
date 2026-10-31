@@ -974,23 +974,25 @@
   font-weight: 900;
 }
 
-.property-card .panorama-modal {
-  position: absolute;
+.panorama-modal {
+  position: fixed;
   inset: 0;
-  z-index: 5100;
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 24px;
   background: rgba(3, 10, 22, 0.9);
   pointer-events: all;
+  font-family: "Cairo", sans-serif;
 }
 
-.property-card .panorama-modal-card {
+.panorama-modal-card {
   display: flex;
   flex-direction: column;
-  width: min(100%, 760px);
-  height: min(100%, 590px);
+  width: min(100%, 1180px);
+  height: min(92dvh, 820px);
+  min-height: 360px;
   overflow: hidden;
   border: 1px solid rgba(240, 214, 138, 0.42);
   border-radius: 20px;
@@ -998,7 +1000,7 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
 }
 
-.property-card .panorama-modal-header {
+.panorama-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1008,22 +1010,22 @@
   color: #fff;
 }
 
-.property-card .panorama-modal-header > div {
+.panorama-modal-header > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.property-card .panorama-modal-header strong {
+.panorama-modal-header strong {
   font-size: 15px;
 }
 
-.property-card .panorama-modal-header small {
+.panorama-modal-header small {
   color: rgba(255, 255, 255, 0.68);
   font-size: 10px;
 }
 
-.property-card .panorama-modal-header .close-video-btn {
+.panorama-modal-header .close-video-btn {
   position: static;
   flex: 0 0 36px;
   width: 36px;
@@ -1032,97 +1034,7 @@
   color: #fff;
 }
 
-.property-card .panorama-viewer {
-  position: relative;
-  flex: 1;
-  min-height: 300px;
-  overflow: hidden;
-  background: radial-gradient(circle at center, #29496a, #071426 75%);
-  pointer-events: all;
-  touch-action: none;
-  user-select: none;
-}
-
-.property-card .panorama-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: grab;
-  pointer-events: all;
-  touch-action: none;
-  user-select: none;
-}
-
-.property-card .panorama-canvas:active {
-  cursor: grabbing;
-}
-
-.property-card .panorama-status,
-.property-card .panorama-empty {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 8px;
-  padding: 24px;
-  color: rgba(255, 255, 255, 0.82);
-  text-align: center;
-  pointer-events: none;
-}
-
-.property-card .panorama-status-error {
-  color: #ffd0c7;
-}
-
-.property-card .panorama-empty-icon {
-  color: var(--gold-light);
-  font-size: 38px;
-  font-weight: 900;
-}
-
-.property-card .panorama-empty strong {
-  color: #fff;
-  font-size: 15px;
-}
-
-.property-card .panorama-empty small {
-  max-width: 360px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
-  line-height: 1.7;
-}
-
-.property-card .panorama-hint {
-  position: absolute;
-  right: 14px;
-  bottom: 12px;
-  z-index: 2;
-  padding: 5px 9px;
-  border-radius: 8px;
-  background: rgba(3, 12, 25, 0.64);
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 10px;
-  pointer-events: none;
-}
-
-.property-card .panorama-demo-label {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 2;
-  padding: 6px 9px;
-  border: 1px solid rgba(240, 214, 138, 0.42);
-  border-radius: 8px;
-  background: rgba(58, 38, 7, 0.78);
-  color: #f8df9a;
-  font-size: 10px;
-  pointer-events: none;
-}
-
-.property-card .panorama-iframe {
+.panorama-iframe {
   flex: 1;
   width: 100%;
   min-height: 300px;
@@ -1137,6 +1049,17 @@
 }
 
 @media (max-width: 640px) {
+  .panorama-modal {
+    padding: 10px;
+  }
+
+  .panorama-modal-card {
+    width: 100%;
+    height: calc(100dvh - 20px);
+    min-height: 0;
+    border-radius: 14px;
+  }
+
   .property-card-overlay {
     padding: 10px;
     align-items: center;
